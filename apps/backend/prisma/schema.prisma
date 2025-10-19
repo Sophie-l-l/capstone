@@ -16,7 +16,7 @@ model User {
   email        String   @unique
   name         String
   passwordHash String
-  role         String   // "student" or "instructor"
+  role         String // "student" or "instructor"
   avatar       String?
   bio          String?
   location     String?
@@ -27,35 +27,36 @@ model User {
 
   // Relations
   submissions  Submission[]
-  problems     Problem[]    // Problems created by instructor
+  problems     Problem[] // Problems created by instructor
   achievements UserAchievement[]
+  bktStates    BKTState[] // BKT (Bayesian Knowledge Tracing) states
 
   @@map("users")
 }
 
 model Problem {
-  id                   String   @id @default(uuid())
-  title                String
-  difficulty           String   // "easy", "medium", "hard"
-  description          String
-  inputFormat          String
-  outputFormat         String
-  constraints          String[]
-  topics               String[]
-  knowledgeComponents  String[]
-  timeLimit            Int      @default(5)  // seconds
-  memoryLimit          Int      @default(256) // MB
-  acceptanceRate       Float    @default(0)
-  totalSubmissions     Int      @default(0)
-  source               String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  title               String
+  difficulty          String // "easy", "medium", "hard"
+  description         String
+  inputFormat         String
+  outputFormat        String
+  constraints         String[]
+  topics              String[]
+  knowledgeComponents String[]
+  timeLimit           Int      @default(5) // seconds
+  memoryLimit         Int      @default(256) // MB
+  acceptanceRate      Float    @default(0)
+  totalSubmissions    Int      @default(0)
+  source              String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   // Relations
-  createdBy    String?
-  creator      User?        @relation(fields: [createdBy], references: [id])
-  testCases    TestCase[]
-  submissions  Submission[]
+  createdBy   String?
+  creator     User?        @relation(fields: [createdBy], references: [id])
+  testCases   TestCase[]
+  submissions Submission[]
 
   @@map("problems")
 }
@@ -76,31 +77,23 @@ model TestCase {
 }
 
 model Submission {
-  id               String   @id @default(uuid())
-  userId           String
-  problemId        String
-  code             String
-  language         String   // "python", "java", "cpp", "javascript"
-  status           String   // "accepted", "wrong_answer", "runtime_error", "time_limit_exceeded", "compilation_error"
-  testCasesPassed  Int      @default(0)
-  totalTestCases   Int
-  runtime          Float?   // in seconds
-  memory           Int?     // in KB
-  submittedAt      DateTime @default(now())
+  id              String   @id @default(uuid())
+  userId          String
+  problemId       String
+  code            String
+  language        String // "python", "java", "cpp", "javascript"
+  status          String // "accepted", "wrong_answer", "runtime_error", "time_limit_exceeded", "compilation_error"
+  testCasesPassed Int      @default(0)
+  totalTestCases  Int
+  runtime         Float? // in seconds
+  memory          Int? // in KB
+  submittedAt     DateTime @default(now())
 
   // Relations
   user    User    @relation(fields: [userId], references: [id])
   problem Problem @relation(fields: [problemId], references: [id])
 
   @@map("submissions")
-}
-
-model KnowledgeComponent {
-  id          String @id @default(uuid())
-  name        String @unique
-  description String?
-
-  @@map("knowledge_components")
 }
 
 model Achievement {
@@ -117,13 +110,13 @@ model Achievement {
 }
 
 model UserAchievement {
-  id          String    @id @default(uuid())
-  userId      String
+  id            String    @id @default(uuid())
+  userId        String
   achievementId String
-  progress    Int?      // for progressive achievements
-  total       Int?      // total required for completion
-  unlocked    Boolean   @default(false)
-  unlockedAt  DateTime?
+  progress      Int? // for progressive achievements
+  total         Int? // total required for completion
+  unlocked      Boolean   @default(false)
+  unlockedAt    DateTime?
 
   // Relations
   user        User        @relation(fields: [userId], references: [id])
@@ -131,4 +124,26 @@ model UserAchievement {
 
   @@unique([userId, achievementId])
   @@map("user_achievements")
+}
+
+model KnowledgeComponent {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String
+  createdAt   DateTime   @default(now())
+  bktStates   BKTState[]
+}
+
+model BKTState {
+  id          String             @id @default(uuid())
+  userId      String
+  kcId        String
+  pKnown      Float              @default(0.2)
+  attempts    Int                @default(0)
+  corrects    Int                @default(0)
+  lastUpdated DateTime           @default(now())
+  user        User               @relation(fields: [userId], references: [id])
+  kc          KnowledgeComponent @relation(fields: [kcId], references: [id])
+
+  @@unique([userId, kcId])
 }
