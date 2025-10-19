@@ -1,0 +1,134 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   // "student" or "instructor"
+  avatar       String?
+  bio          String?
+  location     String?
+  githubUrl    String?
+  linkedinUrl  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  submissions  Submission[]
+  problems     Problem[]    // Problems created by instructor
+  achievements UserAchievement[]
+
+  @@map("users")
+}
+
+model Problem {
+  id                   String   @id @default(uuid())
+  title                String
+  difficulty           String   // "easy", "medium", "hard"
+  description          String
+  inputFormat          String
+  outputFormat         String
+  constraints          String[]
+  topics               String[]
+  knowledgeComponents  String[]
+  timeLimit            Int      @default(5)  // seconds
+  memoryLimit          Int      @default(256) // MB
+  acceptanceRate       Float    @default(0)
+  totalSubmissions     Int      @default(0)
+  source               String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  createdBy    String?
+  creator      User?        @relation(fields: [createdBy], references: [id])
+  testCases    TestCase[]
+  submissions  Submission[]
+
+  @@map("problems")
+}
+
+model TestCase {
+  id          String  @id @default(uuid())
+  problemId   String
+  input       String
+  output      String
+  explanation String?
+  isHidden    Boolean @default(false)
+  points      Int     @default(10)
+
+  // Relations
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@map("test_cases")
+}
+
+model Submission {
+  id               String   @id @default(uuid())
+  userId           String
+  problemId        String
+  code             String
+  language         String   // "python", "java", "cpp", "javascript"
+  status           String   // "accepted", "wrong_answer", "runtime_error", "time_limit_exceeded", "compilation_error"
+  testCasesPassed  Int      @default(0)
+  totalTestCases   Int
+  runtime          Float?   // in seconds
+  memory           Int?     // in KB
+  submittedAt      DateTime @default(now())
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id])
+  problem Problem @relation(fields: [problemId], references: [id])
+
+  @@map("submissions")
+}
+
+model KnowledgeComponent {
+  id          String @id @default(uuid())
+  name        String @unique
+  description String?
+
+  @@map("knowledge_components")
+}
+
+model Achievement {
+  id          String @id @default(uuid())
+  name        String @unique
+  description String
+  icon        String
+  rarity      String // "common", "rare", "epic", "legendary"
+
+  // Relations
+  users UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id          String    @id @default(uuid())
+  userId      String
+  achievementId String
+  progress    Int?      // for progressive achievements
+  total       Int?      // total required for completion
+  unlocked    Boolean   @default(false)
+  unlockedAt  DateTime?
+
+  // Relations
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
