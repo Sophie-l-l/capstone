@@ -13,9 +13,15 @@
     --color-red-600: oklch(57.7% 0.245 27.325);
     --color-orange-500: oklch(70.5% 0.213 47.604);
     --color-orange-600: oklch(64.6% 0.222 41.116);
+    --color-yellow-100: oklch(97.3% 0.071 103.193);
+    --color-yellow-200: oklch(94.5% 0.129 101.54);
+    --color-yellow-300: oklch(90.5% 0.182 98.111);
     --color-yellow-400: oklch(85.2% 0.199 91.936);
     --color-yellow-500: oklch(79.5% 0.184 86.047);
     --color-yellow-600: oklch(68.1% 0.162 75.834);
+    --color-yellow-700: oklch(55.4% 0.135 66.442);
+    --color-yellow-800: oklch(47.6% 0.114 61.907);
+    --color-yellow-900: oklch(42.1% 0.095 57.708);
     --color-green-400: oklch(79.2% 0.209 151.711);
     --color-green-500: oklch(72.3% 0.219 149.579);
     --color-green-600: oklch(62.7% 0.194 149.214);
@@ -322,6 +328,9 @@
   }
   .bottom-0 {
     bottom: calc(var(--spacing) * 0);
+  }
+  .bottom-4 {
+    bottom: calc(var(--spacing) * 4);
   }
   .-left-12 {
     left: calc(var(--spacing) * -12);
@@ -1236,6 +1245,9 @@
   .border-transparent {
     border-color: transparent;
   }
+  .border-yellow-300 {
+    border-color: var(--color-yellow-300);
+  }
   .border-t-transparent {
     border-top-color: transparent;
   }
@@ -1337,6 +1349,9 @@
   }
   .bg-white {
     background-color: var(--color-white);
+  }
+  .bg-yellow-100 {
+    background-color: var(--color-yellow-100);
   }
   .bg-yellow-500\/10 {
     background-color: color-mix(in srgb, oklch(79.5% 0.184 86.047) 10%, transparent);
@@ -1709,6 +1724,12 @@
   }
   .text-yellow-600 {
     color: var(--color-yellow-600);
+  }
+  .text-yellow-700 {
+    color: var(--color-yellow-700);
+  }
+  .text-yellow-800 {
+    color: var(--color-yellow-800);
   }
   .capitalize {
     text-transform: capitalize;
@@ -4318,6 +4339,11 @@
       border-color: var(--input);
     }
   }
+  .dark\:border-yellow-700 {
+    &:is(.dark *) {
+      border-color: var(--color-yellow-700);
+    }
+  }
   .dark\:bg-destructive\/60 {
     &:is(.dark *) {
       background-color: var(--destructive);
@@ -4339,6 +4365,11 @@
       background-color: transparent;
     }
   }
+  .dark\:bg-yellow-900 {
+    &:is(.dark *) {
+      background-color: var(--color-yellow-900);
+    }
+  }
   .dark\:text-blue-400 {
     &:is(.dark *) {
       color: var(--color-blue-400);
@@ -4357,6 +4388,16 @@
   .dark\:text-red-400 {
     &:is(.dark *) {
       color: var(--color-red-400);
+    }
+  }
+  .dark\:text-yellow-200 {
+    &:is(.dark *) {
+      color: var(--color-yellow-200);
+    }
+  }
+  .dark\:text-yellow-300 {
+    &:is(.dark *) {
+      color: var(--color-yellow-300);
     }
   }
   .dark\:text-yellow-400 {

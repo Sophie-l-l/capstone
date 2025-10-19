@@ -62,13 +62,27 @@ educode-adaptive-platform/
    npx prisma migrate dev --name init
    ```
 
-5. **Start all services**
+5. **Start the main services**
    ```bash
    npm run dev
+   # This starts:
    # Frontend: http://localhost:3000
    # Backend: http://localhost:3001
-   # AI-service: http://localhost:8000
    ```
+
+6. **Start the AI service separately**
+   
+   Open a new terminal and run:
+   ```bash
+   cd apps/ai-service
+   ./venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+   # AI Service: http://localhost:8000
+   ```
+
+### Development Workflow
+- **Terminal 1**: Run `npm run dev` (Frontend + Backend)
+- **Terminal 2**: Run AI service command above
+- **All services ready**: Frontend (3000), Backend (3001), AI Service (8000)
 
 ## Testing & Verification
 - Register and log in as a user
@@ -104,6 +118,6 @@ Pull requests and issues are welcome! Please open an issue to discuss major chan
 MIT License
 
 ## Contact
-- **Project Lead**: Sophie L
+- **Project Lead**: Sophie Lin, Yanlin Wu
 - **Repository**: https://github.com/Sophie-l-l/capstone
 - **Project**: Capstone - Adaptive Learning Platform
