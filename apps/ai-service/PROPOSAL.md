@@ -152,16 +152,9 @@ Suggested example endpoints to add in `ai-service`
 
 These additions are designed to be incremental: start with lightweight statistical tooling (calibration, item analysis) before investing in heavier models (DKT, multimodal affect).
 
-Discussion items to bring to your professor
+Discussion items: 
 1. Which analyses are priorities for pedagogical impact in our course — immediate (BKT + intervention) vs research (DKT + multimodal)?
 2. Consent and data retention policy for webcam/audio: what is acceptable for pilot studies? Client-side extraction vs raw upload?
 3. Which KCs to include in an initial pilot (a curated subset of 10–15 KCs vs the full 40+)?
 4. Acceptable intervention modalities (text hint, short video, interactive worked example) and whether students should opt in to automatic interventions.
 5. Evaluation design: duration, A/B split, metrics (time-to-mastery, retention, affect reduction), and instructor involvement.
-
-Next steps I can take (pick one)
-- Create the MVP endpoints in `apps/ai-service` (BKT update, intervene/decide, judge0/calibrate, misconception/check) with simple rule-based logic and tests.
-- Add a `PROTOTYPE.md` with simple example payloads and how backend should call these endpoints.
-- Create a short slide or one-page abstract for your professor summarizing expected pedagogy impact and ethical considerations.
-
-If you want, I can add the MVP endpoints (stubs + doc) into `apps/ai-service/main.py` and a `PROTOTYPE.md`. Which should I do next?
