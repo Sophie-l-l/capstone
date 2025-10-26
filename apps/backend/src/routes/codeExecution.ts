@@ -6,6 +6,7 @@ import { runCode } from "../services/judge0.service";
 
 const router = express.Router();
 const prisma = new PrismaClient();
+const { updateBKTLocal } = require("../services/bkt.service");
 
 // Language ID mapping for Judge0
 const languageIds: Record<string, number> = {
@@ -124,7 +125,7 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
       return res.status(400).json({ message: "Problem ID is required" });
     }
 
-    // Get problem with all test cases (including hidden ones)
+    // Get problem with all test cases (including hidden ones) and knowledge components
     const problem = await prisma.problem.findUnique({
       where: { id: problemId },
       include: {
@@ -181,6 +182,22 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
         submittedAt: new Date()
       }
     });
+
+      // Update BKT states for knowledge components associated with this problem
+      try {
+        // problem.knowledgeComponents is an array of KC names
+        const kcNames: string[] = (problem as any).knowledgeComponents || [];
+        for (const kcName of kcNames) {
+          // call local BKT updater; ignore failures so submission flow isn't blocked
+          try {
+            await updateBKTLocal(userId, kcName, status === 'accepted');
+          } catch (e) {
+            console.error('BKT update failed for', kcName, e);
+          }
+        }
+      } catch (e) {
+        console.error('Error updating BKT states:', e);
+      }
 
     // Update problem statistics
     const isAccepted = status === "accepted";

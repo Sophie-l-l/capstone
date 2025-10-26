@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcrypt'
 
 const prisma = new PrismaClient()
 
@@ -320,6 +321,34 @@ The tree is represented as a string where each node value is separated by spaces
       update: {},
       create: kc
     })
+  }
+
+  // Create a test student user so developers have a stable user ID for testing
+  try {
+    console.log('👤 Creating test user from seed...')
+    const email = 'test@example.com'
+    const password = 'password123'
+    const hashedPassword = await bcrypt.hash(password, 12)
+
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: {
+        email,
+        username: 'testuser',
+        name: 'Test User',
+        passwordHash: hashedPassword,
+        role: 'student'
+      },
+      select: { id: true }
+    })
+
+    console.log('✅ Test user ensured')
+    console.log('📧 Email:', email)
+    console.log('🔑 Password:', password)
+    console.log('👤 User ID:', user.id)
+  } catch (e) {
+    console.error('⚠️  Skipping test user creation (error):', e)
   }
 
   console.log('✅ Database seeded successfully!')
