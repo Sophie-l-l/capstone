@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express = require("express");
 const client_1 = require("@prisma/client");
-const { authenticateToken } = require("./auth");
+const { authenticateToken } = require("../middleware/auth");
 const router = express.Router();
 const prisma = new client_1.PrismaClient();
 // Get all problems with filtering and pagination

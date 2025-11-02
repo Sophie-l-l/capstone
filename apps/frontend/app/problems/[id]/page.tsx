@@ -157,10 +157,12 @@ export default function ProblemPage() {
         code,
         language,
         status: result.status || "accepted",
-        testCasesPassed: result.passedTestCases || 0,
+        testCasesPassed: result.testCasesPassed || 0,
         totalTestCases: result.totalTestCases || 0,
-        runtime: result.averageRuntime || 0,
-        memory: result.maxMemory || 0,
+        runtime: result.runtime || 0,
+        memory: result.memory || 0,
+        compileOutput: result.compileOutput || null,
+        stderr: result.stderr || null,
         submittedAt: new Date().toISOString(),
       }
 
@@ -197,10 +199,12 @@ export default function ProblemPage() {
         code,
         language,
         status: result.status || "accepted",
-        testCasesPassed: result.passedTestCases || 0,
+        testCasesPassed: result.testCasesPassed || 0,
         totalTestCases: result.totalTestCases || 0,
-        runtime: result.averageRuntime || 0,
-        memory: result.maxMemory || 0,
+        runtime: result.runtime || 0,
+        memory: result.memory || 0,
+        compileOutput: result.compileOutput || null,
+        stderr: result.stderr || null,
         submittedAt: new Date().toISOString(),
       }
 

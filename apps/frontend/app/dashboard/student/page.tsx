@@ -21,12 +21,31 @@ type StudentResponse = {
   kcMastery: { kc: string; pKnown: number }[]
 }
 
+type ErrorAnalytics = {
+  topErrors: { label: string; count: number }[]
+  recentErrors: {
+    id: string
+    label: string
+    confidence: number
+  problemTitle: string
+  problemId: string
+  language: string
+  createdAt: string
+  compileOutput: string | null
+  stderr: string | null
+  }[]
+}
+
 export default function StudentDashboardPage() {
   const STUDENT_ID = "bc103785-af09-44a3-afb3-d16721df5b7f" // temporary hardcoded id
 
   const [data, setData] = useState<StudentResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Error analytics state
+  const [errorData, setErrorData] = useState<ErrorAnalytics | null>(null)
+  const [errorLoading, setErrorLoading] = useState(true)
 
   // Submissions modal state
   const [submissionsOpen, setSubmissionsOpen] = useState(false)
@@ -57,6 +76,31 @@ export default function StudentDashboardPage() {
         setData(null)
       })
       .finally(() => mounted && setLoading(false))
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  // Fetch error analytics
+  useEffect(() => {
+    let mounted = true
+    setErrorLoading(true)
+    fetch(`http://localhost:3001/api/students/${STUDENT_ID}/errors?limit=10`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+      .then((json) => {
+        if (!mounted) return
+        setErrorData(json)
+      })
+      .catch((e) => {
+        if (!mounted) return
+        console.error('Error fetching error analytics:', e)
+        setErrorData(null)
+      })
+      .finally(() => mounted && setErrorLoading(false))
 
     return () => {
       mounted = false
@@ -371,6 +415,37 @@ export default function StudentDashboardPage() {
             </Card>
 
             <Card>
+              <CardHeader>
+                <CardTitle>Top Error Types</CardTitle>
+              </CardHeader>
+              <CardContent className="h-64">
+                {errorLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading error analytics...</p>
+                ) : !errorData || errorData.topErrors.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No errors recorded yet</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={errorData.topErrors} margin={{ top: 10, right: 20, left: 0, bottom: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="label" 
+                        angle={-45} 
+                        textAnchor="end" 
+                        height={80}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#EF4444" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
               <CardHeader className="flex items-center justify-between">
                 <CardTitle>Knowledge Mastery</CardTitle>
                 <div>
@@ -459,6 +534,44 @@ export default function StudentDashboardPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Recent Errors Section */}
+          {!errorLoading && errorData && errorData.recentErrors.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Errors</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {errorData.recentErrors.map((error) => (
+                    <div key={error.id} className="border rounded-lg p-4 space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-destructive">{error.label}</span>
+                            <span className="text-xs px-2 py-1 bg-muted rounded">
+                              {Math.round(error.confidence * 100)}% confidence
+                            </span>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Problem: <span className="font-medium">{error.problemTitle}</span> ({error.language})
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(error.createdAt).toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                      {(error.compileOutput || error.stderr) && (
+                        <div className="mt-2 p-3 bg-muted/50 rounded text-xs font-mono overflow-x-auto">
+                          <pre className="whitespace-pre-wrap">{error.compileOutput || error.stderr}</pre>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
         {/* Submissions dialog */}
         <Dialog open={submissionsOpen} onOpenChange={(v) => { if (!v) { setSubmissionsOpen(false) } }}>

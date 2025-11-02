@@ -22,6 +22,15 @@ let problemRoutes: any = require("./routes/problems");
 let codeExecutionRoutes: any = require("./routes/codeExecution");
 let studentDashboardRoutes: any = require("./routes/studentDashboard");
 let studentSubmissionsRoutes: any = require("./routes/studentSubmissions");
+let studentErrorsRoutes: any = require("./routes/studentErrors");
+let devRoutes: any = null;
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    devRoutes = require("./routes/dev");
+  } catch (e) {
+    console.error('Dev routes not available:', e);
+  }
+}
 
 // Normalize common export shapes: allow either `module.exports = router` or `module.exports = { router, ... }` or `export default`
 const normalizeRouter = (mod: any) => {
@@ -36,6 +45,8 @@ problemRoutes = normalizeRouter(problemRoutes);
 codeExecutionRoutes = normalizeRouter(codeExecutionRoutes);
 studentDashboardRoutes = normalizeRouter(studentDashboardRoutes);
 studentSubmissionsRoutes = normalizeRouter(studentSubmissionsRoutes);
+studentErrorsRoutes = normalizeRouter(studentErrorsRoutes);
+devRoutes = normalizeRouter(devRoutes);
 
 // Minimal diagnostics: ensure routers were loaded
 if (!authRoutes || !problemRoutes || !codeExecutionRoutes || !studentDashboardRoutes) {
@@ -90,11 +101,17 @@ try {
 const studentsCombined = express.Router();
 if (studentDashboardRoutes) studentsCombined.use(studentDashboardRoutes);
 if (studentSubmissionsRoutes) studentsCombined.use(studentSubmissionsRoutes);
+if (studentErrorsRoutes) studentsCombined.use(studentErrorsRoutes);
 
-if (!studentDashboardRoutes && !studentSubmissionsRoutes) {
+if (!studentDashboardRoutes && !studentSubmissionsRoutes && !studentErrorsRoutes) {
   console.error('No student routes available to mount under /api/students');
 } else {
   app.use("/api/students", studentsCombined);
+}
+
+// Dev-only endpoints
+if (devRoutes) {
+  app.use("/api/dev", devRoutes);
 }
 
 // 404 handler - must be after all other routes

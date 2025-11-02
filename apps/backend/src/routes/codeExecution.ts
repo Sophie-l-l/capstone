@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 const { authenticateToken } = require("../middleware/auth");
 import { runCode } from "../services/judge0.service";
+import { recordSubmissionError } from "../services/errorClassifier.service";
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -53,13 +54,15 @@ router.post("/:id/run", authenticateToken, async (req: Request, res: Response) =
       return res.status(400).json({ message: "No test cases available for this problem" });
     }
 
-    // Run code against each public test case
-    const results = [];
-    let passedCount = 0;
+  // Run code against each public test case
+  const results = [];
+  let passedCount = 0;
+  let lastResult: any = null;
 
     for (const testCase of problem.testCases) {
       try {
-        const result = await runCode(code, languageIds[language], testCase.input);
+  const result = await runCode(code, languageIds[language], testCase.input);
+  lastResult = result;
         
         const passed = result.stdout?.trim() === testCase.output.trim();
         if (passed) passedCount++;
@@ -71,6 +74,7 @@ router.post("/:id/run", authenticateToken, async (req: Request, res: Response) =
           expectedOutput: testCase.output,
           actualOutput: result.stdout,
           error: result.stderr,
+          compileOutput: result.compile_output,
           runtime: result.time,
           memory: result.memory
         });
@@ -88,13 +92,15 @@ router.post("/:id/run", authenticateToken, async (req: Request, res: Response) =
       }
     }
 
-    const allPassed = passedCount === problem.testCases.length;
+  const allPassed = passedCount === problem.testCases.length;
 
     res.json({
       status: allPassed ? "Accepted" : "Failed",
       testCasesPassed: passedCount,
       totalTestCases: problem.testCases.length,
       results,
+      compileOutput: lastResult?.compile_output ?? null,
+      stderr: lastResult?.stderr ?? null,
       message: allPassed 
         ? "All test cases passed!" 
         : `${passedCount}/${problem.testCases.length} test cases passed`
@@ -137,16 +143,18 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
       return res.status(404).json({ message: "Problem not found" });
     }
 
-    // Run code against all test cases
-    let passedCount = 0;
-    let totalRuntime = 0;
-    let maxMemory = 0;
-    let status = "accepted";
+  // Run code against all test cases
+  let passedCount = 0;
+  let totalRuntime = 0;
+  let maxMemory = 0;
+  let status = "accepted";
+  let lastResult: any = null;
 
     for (const testCase of problem.testCases) {
       try {
         const result = await runCode(code, languageIds[language], testCase.input);
-        
+        lastResult = result;
+
         if (result.stderr) {
           status = result.status_id === 5 ? "time_limit_exceeded" : "runtime_error";
           break;
@@ -179,9 +187,27 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
         totalTestCases: problem.testCases.length,
         runtime: totalRuntime / problem.testCases.length,
         memory: maxMemory,
+        compileOutput: lastResult?.compile_output ?? null,
+        stderr: lastResult?.stderr ?? null,
+        judgeStatusId: lastResult?.status_id ?? null,
         submittedAt: new Date()
       }
     });
+
+    // Record error if compilation or runtime error occurred
+    if (lastResult && (lastResult.compile_output || lastResult.stderr)) {
+      try {
+        await recordSubmissionError({
+          submissionId: submission.id,
+          language,
+          compileOutput: lastResult.compile_output,
+          stderr: lastResult.stderr
+        });
+      } catch (e) {
+        console.error('Error recording submission error:', e);
+        // Don't fail the submission if error recording fails
+      }
+    }
 
       // Update BKT states for knowledge components associated with this problem
       try {
@@ -218,6 +244,8 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
       totalTestCases: submission.totalTestCases,
       runtime: submission.runtime,
       memory: submission.memory,
+      compileOutput: submission.compileOutput,
+      stderr: submission.stderr,
       submittedAt: submission.submittedAt
     });
   } catch (error) {

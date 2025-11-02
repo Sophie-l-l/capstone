@@ -87,13 +87,63 @@ model Submission {
   totalTestCases  Int
   runtime         Float? // in seconds
   memory          Int? // in KB
+  // Raw output from judge (compile/runtime) to display in UI
+  compileOutput   String? @db.Text
+  stderr          String? @db.Text
+  judgeStatusId   Int?
   submittedAt     DateTime @default(now())
 
   // Relations
   user    User    @relation(fields: [userId], references: [id])
   problem Problem @relation(fields: [problemId], references: [id])
+  error   SubmissionError?
 
   @@map("submissions")
+}
+
+model SubmissionError {
+  id            String    @id @default(uuid())
+  submissionId  String    @unique
+  language      String
+  compileOutput String?   @db.Text
+  stderr        String?   @db.Text
+  signatureId   String?
+  createdAt     DateTime  @default(now())
+
+  submission Submission      @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  signature  ErrorSignature? @relation(fields: [signatureId], references: [id])
+
+  @@map("submission_errors")
+}
+
+model ErrorSignature {
+  id         String   @id @default(uuid())
+  hash       String   @unique // SHA-256 of normalized error text
+  label      String? // LLM-assigned short label, e.g., "Missing semicolon"
+  confidence Float?
+  sample     String?  @db.Text // First example error text
+  embedding  Json? // Store vector as JSON array
+  clusterId  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cluster      ErrorCluster?     @relation(fields: [clusterId], references: [id])
+  occurrences  SubmissionError[]
+
+  @@index([hash])
+  @@map("error_signatures")
+}
+
+model ErrorCluster {
+  id         String   @id @default(uuid())
+  name       String? // Optional human-readable label
+  centroid   Json? // Average embedding vector
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  signatures ErrorSignature[]
+
+  @@map("error_clusters")
 }
 
 model Achievement {

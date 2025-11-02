@@ -58,6 +58,8 @@ export interface Submission {
   totalTestCases: number
   runtime?: number
   memory?: number
+  compileOutput?: string | null
+  stderr?: string | null
   submittedAt: string
 }
 

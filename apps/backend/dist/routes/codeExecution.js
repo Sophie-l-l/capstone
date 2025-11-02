@@ -4,8 +4,10 @@ const express = require("express");
 const client_1 = require("@prisma/client");
 const { authenticateToken } = require("../middleware/auth");
 const judge0_service_1 = require("../services/judge0.service");
+const errorClassifier_service_1 = require("../services/errorClassifier.service");
 const router = express.Router();
 const prisma = new client_1.PrismaClient();
+const { updateBKTLocal } = require("../services/bkt.service");
 // Language ID mapping for Judge0
 const languageIds = {
     python: 71,
@@ -46,9 +48,11 @@ router.post("/:id/run", authenticateToken, async (req, res) => {
         // Run code against each public test case
         const results = [];
         let passedCount = 0;
+        let lastResult = null;
         for (const testCase of problem.testCases) {
             try {
                 const result = await (0, judge0_service_1.runCode)(code, languageIds[language], testCase.input);
+                lastResult = result;
                 const passed = result.stdout?.trim() === testCase.output.trim();
                 if (passed)
                     passedCount++;
@@ -59,6 +63,7 @@ router.post("/:id/run", authenticateToken, async (req, res) => {
                     expectedOutput: testCase.output,
                     actualOutput: result.stdout,
                     error: result.stderr,
+                    compileOutput: result.compile_output,
                     runtime: result.time,
                     memory: result.memory
                 });
@@ -82,6 +87,8 @@ router.post("/:id/run", authenticateToken, async (req, res) => {
             testCasesPassed: passedCount,
             totalTestCases: problem.testCases.length,
             results,
+            compileOutput: lastResult?.compile_output ?? null,
+            stderr: lastResult?.stderr ?? null,
             message: allPassed
                 ? "All test cases passed!"
                 : `${passedCount}/${problem.testCases.length} test cases passed`
@@ -108,7 +115,7 @@ router.post("/:id/submit", authenticateToken, async (req, res) => {
         if (!problemId) {
             return res.status(400).json({ message: "Problem ID is required" });
         }
-        // Get problem with all test cases (including hidden ones)
+        // Get problem with all test cases (including hidden ones) and knowledge components
         const problem = await prisma.problem.findUnique({
             where: { id: problemId },
             include: {
@@ -123,9 +130,11 @@ router.post("/:id/submit", authenticateToken, async (req, res) => {
         let totalRuntime = 0;
         let maxMemory = 0;
         let status = "accepted";
+        let lastResult = null;
         for (const testCase of problem.testCases) {
             try {
                 const result = await (0, judge0_service_1.runCode)(code, languageIds[language], testCase.input);
+                lastResult = result;
                 if (result.stderr) {
                     status = result.status_id === 5 ? "time_limit_exceeded" : "runtime_error";
                     break;
@@ -157,9 +166,44 @@ router.post("/:id/submit", authenticateToken, async (req, res) => {
                 totalTestCases: problem.testCases.length,
                 runtime: totalRuntime / problem.testCases.length,
                 memory: maxMemory,
+                compileOutput: lastResult?.compile_output ?? null,
+                stderr: lastResult?.stderr ?? null,
+                judgeStatusId: lastResult?.status_id ?? null,
                 submittedAt: new Date()
             }
         });
+        // Record error if compilation or runtime error occurred
+        if (lastResult && (lastResult.compile_output || lastResult.stderr)) {
+            try {
+                await (0, errorClassifier_service_1.recordSubmissionError)({
+                    submissionId: submission.id,
+                    language,
+                    compileOutput: lastResult.compile_output,
+                    stderr: lastResult.stderr
+                });
+            }
+            catch (e) {
+                console.error('Error recording submission error:', e);
+                // Don't fail the submission if error recording fails
+            }
+        }
+        // Update BKT states for knowledge components associated with this problem
+        try {
+            // problem.knowledgeComponents is an array of KC names
+            const kcNames = problem.knowledgeComponents || [];
+            for (const kcName of kcNames) {
+                // call local BKT updater; ignore failures so submission flow isn't blocked
+                try {
+                    await updateBKTLocal(userId, kcName, status === 'accepted');
+                }
+                catch (e) {
+                    console.error('BKT update failed for', kcName, e);
+                }
+            }
+        }
+        catch (e) {
+            console.error('Error updating BKT states:', e);
+        }
         // Update problem statistics
         const isAccepted = status === "accepted";
         await prisma.problem.update({
@@ -178,6 +222,8 @@ router.post("/:id/submit", authenticateToken, async (req, res) => {
             totalTestCases: submission.totalTestCases,
             runtime: submission.runtime,
             memory: submission.memory,
+            compileOutput: submission.compileOutput,
+            stderr: submission.stderr,
             submittedAt: submission.submittedAt
         });
     }

@@ -107,6 +107,28 @@ export function TestResults({ submission }: TestResultsProps) {
             </p>
           </div>
         )}
+
+        {submission.compileOutput && (
+          <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
+            <p className="text-sm font-medium text-orange-600 dark:text-orange-400 mb-2">
+              Compilation Output:
+            </p>
+            <pre className="text-xs text-orange-600 dark:text-orange-300 whitespace-pre-wrap font-mono bg-orange-500/5 p-2 rounded">
+              {submission.compileOutput}
+            </pre>
+          </div>
+        )}
+
+        {submission.stderr && (
+          <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+            <p className="text-sm font-medium text-red-600 dark:text-red-400 mb-2">
+              Runtime Error:
+            </p>
+            <pre className="text-xs text-red-600 dark:text-red-300 whitespace-pre-wrap font-mono bg-red-500/5 p-2 rounded">
+              {submission.stderr}
+            </pre>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

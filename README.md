@@ -31,13 +31,64 @@ educode-adaptive-platform/
 
 ## Quick Start
 
-### Prerequisites
+### Run via Docker (recommended)
+
+Dev (hot reload for all services):
+
+```bash
+# from repo root
+docker compose -f docker-compose.dev.yml up --build
+```
+
+Open these in your browser:
+- Frontend (Next.js): http://localhost:3000
+- Backend (Express API): http://localhost:3001
+- AI service (FastAPI): http://localhost:8000/health
+
+Common commands:
+```bash
+# Stop
+docker compose -f docker-compose.dev.yml down
+
+# Reset volumes (wipe DB/redis/caches)
+docker compose -f docker-compose.dev.yml down -v
+
+# Follow logs
+docker compose -f docker-compose.dev.yml logs -f
+```
+
+Prod-like (optimized images + nginx reverse proxy):
+
+```bash
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Open the app at http://localhost
+- API is proxied under http://localhost/api
+- AI service (optional) under http://localhost/ai/health
+
+To stop:
+```bash
+docker compose -f docker-compose.prod.yml down
+```
+
+Service health checklist (Docker):
+- Frontend: http://localhost (prod) or http://localhost:3000 (dev)
+- Backend: http://localhost/api/problems (prod) or http://localhost:3001/api/problems (dev)
+- AI: http://localhost/ai/health (prod) or http://localhost:8000/health (dev)
+
+If Docker isn't running or you prefer local, use the manual setup below.
+
+### Run locally (fallback)
+
+Prerequisites
 - Node.js 18+
 - Python 3.8+
 - PostgreSQL 15+
 - npm (with workspaces support)
 
-### Setup
+Setup
 1. **Clone the repo**
    ```bash
    git clone https://github.com/Sophie-l-l/capstone.git
@@ -62,12 +113,11 @@ educode-adaptive-platform/
    npx prisma migrate dev --name init
    ```
 
-5. **Start the main services**
+5. **Start the main services** (Frontend + Backend)
    ```bash
    npm run dev
-   # This starts:
    # Frontend: http://localhost:3000
-   # Backend: http://localhost:3001
+   # Backend:  http://localhost:3001
    ```
 
 6. **Start the AI service separately**
@@ -75,7 +125,11 @@ educode-adaptive-platform/
    Open a new terminal and run:
    ```bash
    cd apps/ai-service
-   ./venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+   # Create venv if needed
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   uvicorn main:app --host 127.0.0.1 --port 8000 --reload
    # AI Service: http://localhost:8000
    ```
 
@@ -83,6 +137,11 @@ educode-adaptive-platform/
 - **Terminal 1**: Run `npm run dev` (Frontend + Backend)
 - **Terminal 2**: Run AI service command above
 - **All services ready**: Frontend (3000), Backend (3001), AI Service (8000)
+
+### Local health checks
+- Backend: http://localhost:3001/api/problems should return a list/JSON
+- AI service: http://localhost:8000/health returns `{ status: "ok" }`
+- Frontend: http://localhost:3000 loads the app UI
 
 ## Testing & Verification
 - Register and log in as a user

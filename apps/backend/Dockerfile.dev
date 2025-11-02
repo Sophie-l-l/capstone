@@ -1,0 +1,25 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install OS deps for node-gyp if needed
+RUN apk add --no-cache python3 make g++ bash
+
+# Copy only backend package first to leverage layer caching
+COPY apps/backend/package.json apps/backend/package-lock.json* ./apps/backend/
+
+# Install backend deps (will be overwritten by volume in dev)
+WORKDIR /app/apps/backend
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+# Copy prisma schema for generate at runtime
+WORKDIR /app
+COPY apps/backend/prisma ./apps/backend/prisma
+
+# Default working dir
+WORKDIR /app/apps/backend
+
+EXPOSE 3001
+
+# Nodemon dev server; actual command provided by compose to run prisma and dev
+CMD ["npm", "run", "dev"]
