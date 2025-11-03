@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useAuth } from "@/lib/auth-context"
+import { apiUrl } from "@/lib/config"
 import {
   Dialog,
   DialogContent,
@@ -37,7 +39,8 @@ type ErrorAnalytics = {
 }
 
 export default function StudentDashboardPage() {
-  const STUDENT_ID = "bc103785-af09-44a3-afb3-d16721df5b7f" // temporary hardcoded id
+  const { user } = useAuth()
+  const STUDENT_ID = user?.id
 
   const [data, setData] = useState<StudentResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -59,8 +62,13 @@ export default function StudentDashboardPage() {
 
   useEffect(() => {
     let mounted = true
+    if (!STUDENT_ID) return () => { mounted = false }
     setLoading(true)
-    fetch(`http://localhost:3001/api/students/${STUDENT_ID}/dashboard`)
+    const token = typeof window !== 'undefined' ? localStorage.getItem('educode_token') : null
+    const headers: Record<string, string> = { "Content-Type": "application/json" }
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    fetch(`${apiUrl}/api/students/${STUDENT_ID}/dashboard`, { headers })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
@@ -80,13 +88,18 @@ export default function StudentDashboardPage() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [STUDENT_ID])
 
   // Fetch error analytics
   useEffect(() => {
     let mounted = true
+    if (!STUDENT_ID) return () => { mounted = false }
     setErrorLoading(true)
-    fetch(`http://localhost:3001/api/students/${STUDENT_ID}/errors?limit=10`)
+    const token = typeof window !== 'undefined' ? localStorage.getItem('educode_token') : null
+    const headers: Record<string, string> = { "Content-Type": "application/json" }
+    if (token) headers.Authorization = `Bearer ${token}`
+
+    fetch(`${apiUrl}/api/students/${STUDENT_ID}/errors?limit=10`, { headers })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
@@ -105,7 +118,7 @@ export default function StudentDashboardPage() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [STUDENT_ID])
 
   async function fetchSubmissions(pageToFetch = 1) {
     setSubLoading(true)
@@ -116,7 +129,7 @@ export default function StudentDashboardPage() {
       if (token) headers.Authorization = `Bearer ${token}`
 
       const res = await fetch(
-        `http://localhost:3001/api/students/${STUDENT_ID}/submissions?page=${pageToFetch}&limit=${limit}`,
+        `${apiUrl}/api/students/${STUDENT_ID}/submissions?page=${pageToFetch}&limit=${limit}`,
         { headers }
       )
 
@@ -137,7 +150,7 @@ export default function StudentDashboardPage() {
     }
   }
 
-  if (loading) {
+  if (!STUDENT_ID || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
