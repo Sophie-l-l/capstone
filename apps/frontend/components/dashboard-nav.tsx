@@ -27,19 +27,19 @@ export function DashboardNav() {
     router.push("/login")
   }
 
-  // Build role-specific dashboard link
-  const dashboardHref = user?.role === "instructor" 
-    ? `/dashboard/instructor/${user.id}` 
-    : `/dashboard/student/${user?.id || ''}`
+  // Build role-specific metrics link (detailed analytics)
+  const metricsHref = user?.role === "instructor" 
+    ? `/metrics/instructor` 
+    : `/metrics/student`
 
   const studentLinks = [
-    { href: dashboardHref, label: "Dashboard", icon: LayoutDashboard },
+    { href: metricsHref, label: "Dashboard", icon: LayoutDashboard },
     { href: "/problems", label: "Problems", icon: BookOpen },
     { href: "/profile", label: "Profile", icon: User },
   ]
 
   const instructorLinks = [
-    { href: dashboardHref, label: "Dashboard", icon: LayoutDashboard },
+    { href: metricsHref, label: "Dashboard", icon: LayoutDashboard },
     { href: "/problems", label: "Problems", icon: BookOpen },
     { href: "/create-problem", label: "Create Problem", icon: PlusCircle },
     { href: "/students", label: "Students", icon: Users },
@@ -52,7 +52,7 @@ export function DashboardNav() {
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href={dashboardHref} className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-accent">
               <Code2 className="h-5 w-5 text-primary-foreground" />
             </div>

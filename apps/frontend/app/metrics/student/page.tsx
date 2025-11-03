@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { apiUrl } from "@/lib/config"
-import { useParams } from "next/navigation"
 import { ProtectedRoute } from "@/components/protected-route"
+import { DashboardNav } from "@/components/dashboard-nav"
 import {
   Dialog,
   DialogContent,
@@ -42,8 +42,13 @@ type ErrorAnalytics = {
 
 export default function StudentDashboardPage() {
   const { user } = useAuth()
-  const params = useParams()
-  const STUDENT_ID = params?.id as string
+  const STUDENT_ID = user?.id || ''
+
+  // Debug: Log the user ID to see what we're actually sending to the API
+  useEffect(() => {
+    console.log('🔍 StudentDashboardPage - User from AuthProvider:', user)
+    console.log('🔍 StudentDashboardPage - STUDENT_ID being used:', STUDENT_ID)
+  }, [user, STUDENT_ID])
 
   const [data, setData] = useState<StudentResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -71,18 +76,24 @@ export default function StudentDashboardPage() {
     const headers: Record<string, string> = { "Content-Type": "application/json" }
     if (token) headers.Authorization = `Bearer ${token}`
 
-    fetch(`${apiUrl}/api/students/${STUDENT_ID}/dashboard`, { headers })
+    const url = `${apiUrl}/api/students/${STUDENT_ID}/dashboard`
+    console.log('🌐 Fetching dashboard data from:', url)
+    console.log('📦 STUDENT_ID:', STUDENT_ID)
+
+    fetch(url, { headers })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
       })
       .then((json) => {
         if (!mounted) return
+        console.log('✅ Dashboard data received:', json)
         setData(json)
         setError(null)
       })
       .catch((e) => {
         if (!mounted) return
+        console.error('❌ Dashboard fetch error:', e)
         setError(String(e))
         setData(null)
       })
@@ -278,6 +289,7 @@ export default function StudentDashboardPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background">
+        <DashboardNav />
         <main className="container py-8">
           <div className="space-y-6">
             <div>

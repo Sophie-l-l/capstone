@@ -58,7 +58,7 @@ services:
     working_dir: /app/apps/frontend
     environment:
       NODE_ENV: development
-      NEXT_PUBLIC_API_URL: http://backend:3001
+      NEXT_PUBLIC_API_URL: http://localhost:3001
     volumes:
       - ./:/app
       - frontend-node-modules:/app/apps/frontend/node_modules

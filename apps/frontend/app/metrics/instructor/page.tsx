@@ -1,13 +1,13 @@
 "use client"
 
-import { useParams } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 import { ProtectedRoute } from "@/components/protected-route"
 import { DashboardNav } from "@/components/dashboard-nav"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function InstructorDashboardPage() {
-  const params = useParams()
-  const instructorId = params?.id as string
+  const { user } = useAuth()
+  const instructorId = user?.id || ''
 
   return (
     <ProtectedRoute allowedRoles={["instructor"]}>
