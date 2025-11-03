@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -19,7 +19,13 @@ import { cn } from "@/lib/utils"
 
 export function DashboardNav() {
   const pathname = usePathname()
+  const router = useRouter()
   const { user, logout } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/login")
+  }
 
   // Build role-specific dashboard link
   const dashboardHref = user?.role === "instructor" 
@@ -104,7 +110,7 @@ export function DashboardNav() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive">
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
               </DropdownMenuItem>
