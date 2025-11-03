@@ -37,7 +37,8 @@ export default function RegisterPage() {
 
     try {
       await register(email, password, name, role)
-      router.push("/dashboard")
+      // Home page will redirect to role-specific dashboard
+      router.push("/")
     } catch (err) {
       setError("Registration failed. Please try again.")
     } finally {

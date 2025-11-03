@@ -20,7 +20,8 @@ export function ProtectedRoute({
     if (!isLoading && !user) {
       router.push("/login")
     } else if (!isLoading && user && allowedRoles && !allowedRoles.includes(user.role)) {
-      router.push("/dashboard")
+      // Redirect to home, which will route to the correct role-specific dashboard
+      router.push("/")
     }
   }, [user, isLoading, router, allowedRoles])
 

@@ -11,7 +11,12 @@ export default function HomePage() {
   useEffect(() => {
     if (!isLoading) {
       if (user) {
-        router.push("/dashboard")
+        // Redirect directly to role-specific dashboard
+        if (user.role === "instructor") {
+          router.push(`/dashboard/instructor/${user.id}`)
+        } else {
+          router.push(`/dashboard/student/${user.id}`)
+        }
       } else {
         router.push("/login")
       }

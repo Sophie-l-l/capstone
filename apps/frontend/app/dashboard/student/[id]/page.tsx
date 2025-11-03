@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { apiUrl } from "@/lib/config"
+import { useParams } from "next/navigation"
+import { ProtectedRoute } from "@/components/protected-route"
 import {
   Dialog,
   DialogContent,
@@ -40,7 +42,8 @@ type ErrorAnalytics = {
 
 export default function StudentDashboardPage() {
   const { user } = useAuth()
-  const STUDENT_ID = user?.id
+  const params = useParams()
+  const STUDENT_ID = params?.id as string
 
   const [data, setData] = useState<StudentResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -273,15 +276,16 @@ export default function StudentDashboardPage() {
   const MASTERED_THRESHOLD = 0.8
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="container py-8">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Student Dashboard
-            </h1>
-            <p className="text-muted-foreground mt-2">Performance summary for {student.name}</p>
-          </div>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-background">
+        <main className="container py-8">
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Student Dashboard
+              </h1>
+              <p className="text-muted-foreground mt-2">Performance summary for {student.name}</p>
+            </div>
 
           <Card className="max-w-lg">
             <CardHeader>
@@ -670,5 +674,6 @@ export default function StudentDashboardPage() {
         </Dialog>
       </main>
     </div>
+    </ProtectedRoute>
   )
 }

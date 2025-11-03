@@ -1,10 +1,14 @@
 "use client"
 
+import { useParams } from "next/navigation"
 import { ProtectedRoute } from "@/components/protected-route"
 import { DashboardNav } from "@/components/dashboard-nav"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function InstructorDashboardPage() {
+  const params = useParams()
+  const instructorId = params?.id as string
+
   return (
     <ProtectedRoute allowedRoles={["instructor"]}>
       <div className="min-h-screen bg-background">
@@ -24,7 +28,7 @@ export default function InstructorDashboardPage() {
               <CardContent>
                 <p className="text-sm text-muted-foreground">
                   Instructor analytics endpoints are not yet available on the backend. Once implemented,
-                  this page will fetch real data (no mock data will be used).
+                  this page will fetch real data for instructor {instructorId} (no mock data will be used).
                 </p>
               </CardContent>
             </Card>
