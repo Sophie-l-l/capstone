@@ -8,8 +8,10 @@ The AI Service is a Python FastAPI microservice responsible for analyzing studen
 
 - Docker & Docker Compose installed
 - Python 3.11+ (for local development)
-- OpenAI API key (or other LLM provider)
+- LLM API key (OpenAI, Anthropic, or other provider - **TO BE DETERMINED**)
 - Basic knowledge of FastAPI and Python async/await
+
+> **⚠️ LLM Provider Not Yet Selected**: The current code has OpenAI integration as a placeholder, but **no API key is configured**. Your first task is to research and select an appropriate LLM provider that fits the project budget. See "Your Responsibilities" section below.
 
 ## 🏗️ Architecture
 
@@ -34,12 +36,15 @@ educode-adaptive-platform/
 ```bash
 cd /path/to/educode-adaptive-platform
 
-# Create .env file with your API keys
+# Create .env file with your API keys (AFTER selecting LLM provider)
 cat > .env << EOF
-OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_API_KEY=your_api_key_here  # Replace with your chosen provider's key
 LLM_MIN_CONFIDENCE=0.75
+OPENAI_MODEL=gpt-4o-mini           # Or your chosen model
 EOF
 ```
+
+> **📌 Note**: Currently running **without LLM** - only rule-based classification is active. LLM integration will work once you add an API key.
 
 ### 2. **Start All Services**
 
@@ -232,16 +237,76 @@ curl -X POST http://localhost:3001/api/code/submit \
 
 ## 🔧 Configuration
 
+### **LLM Provider Selection Guide** 🎯
+
+#### **Options to Research**
+
+| Provider | Model Options | Pricing (per 1M tokens) | Pros | Cons |
+|----------|---------------|------------------------|------|------|
+| **OpenAI** | GPT-4o-mini<br>GPT-4o<br>GPT-3.5-turbo | $0.15 / $0.60 (mini)<br>$2.50 / $10.00 (4o)<br>$0.50 / $1.50 (3.5) | Fast, accurate, easy API | Can be expensive |
+| **Anthropic** | Claude 3.5 Sonnet<br>Claude 3 Haiku | $3.00 / $15.00 (Sonnet)<br>$0.25 / $1.25 (Haiku) | Great reasoning, safety | Higher cost |
+| **Google** | Gemini 1.5 Pro<br>Gemini 1.5 Flash | $1.25 / $5.00 (Pro)<br>$0.075 / $0.30 (Flash) | Very cheap, good quality | Newer, less proven |
+| **Open-Source** | Llama 3.1<br>Mistral 7B | Self-hosted: $0 | No API costs | Requires GPU, maintenance |
+
+#### **Budget Estimation Formula**
+
+```python
+# Example calculation
+errors_per_day = 500  # Estimate based on user count
+tokens_per_error = 200  # ~150 error text + 50 response
+api_cost_per_1M_tokens = 0.60  # e.g., GPT-4o-mini output
+
+daily_cost = (errors_per_day * tokens_per_error / 1_000_000) * api_cost_per_1M_tokens
+monthly_cost = daily_cost * 30
+
+# With caching (80% hit rate):
+effective_monthly_cost = monthly_cost * 0.20  # Only 20% hit API
+```
+
+#### **Testing Checklist**
+
+Before selecting a provider, test:
+- [ ] Classification accuracy on sample errors
+- [ ] Response time (< 2 seconds preferred)
+- [ ] Cost per 1000 classifications
+- [ ] Rate limits (requests per minute)
+- [ ] API reliability and uptime
+- [ ] Ease of switching providers later
+
+#### **Recommendation Template**
+
+```markdown
+## LLM Provider Recommendation
+
+**Selected Provider**: [Name]
+**Model**: [Specific model]
+**Estimated Monthly Cost**: $X
+**Expected Accuracy**: X%
+
+**Justification**:
+- [Why this provider?]
+- [Cost-benefit analysis]
+- [Performance metrics]
+
+**Fallback Plan**: 
+- Rule-based for offline/budget constraints
+- Can switch to [alternative provider]
+```
+
 ### **Environment Variables**
 
 Set these in `.env` file at project root:
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `OPENAI_API_KEY` | OpenAI API key for LLM | - | ✅ Yes |
+| `OPENAI_API_KEY` | LLM API key (provider TBD) | - | ⚠️ **You need to add this** |
+| `OPENAI_MODEL` | Model name | gpt-4o-mini | ❌ No (if using OpenAI) |
+| `OPENAI_BASE_URL` | Custom API endpoint | - | ❌ No (for Azure/custom) |
 | `LLM_MIN_CONFIDENCE` | Minimum confidence threshold | 0.75 | ❌ No |
 | `PYTHONDONTWRITEBYTECODE` | Prevent .pyc files | 1 | ❌ No |
 | `PYTHONUNBUFFERED` | Unbuffered output | 1 | ❌ No |
+
+> **Current Status**: Service runs in **rule-based mode only** until you configure an LLM provider.
 
 ### **Docker Configuration**
 
@@ -387,30 +452,78 @@ When service is running, visit:
 
 ## 🎯 Next Steps for Development
 
-### **Immediate Tasks**
+### **YOUR PRIMARY RESPONSIBILITIES** 🎯
+
+As the AI Service developer, you are responsible for:
+
+#### 1. **LLM Provider Selection & Budget Planning** (HIGH PRIORITY)
+   - **Research LLM options**:
+     - OpenAI (GPT-4o-mini, GPT-4o, GPT-3.5-turbo)
+     - Anthropic Claude (Claude 3.5 Sonnet, Haiku)
+     - Google Gemini
+     - Open-source options (Llama 3, Mistral)
+   - **Cost Analysis**:
+     - Estimate: ~X errors per day × Y cost per 1K tokens
+     - Consider rate limits and quotas
+     - Factor in development vs production usage
+   - **Performance Testing**:
+     - Accuracy on sample errors
+     - Response time
+     - Cost per classification
+   - **Deliverable**: Recommendation document with chosen provider, API key, and budget justification
+
+#### 2. **Improve Classification Accuracy**
+   - Fine-tune LLM prompts in `llm_client.py`
+   - Add more context (problem description, test cases, student history)
+   - Experiment with different models and temperature settings
+   - Test with real student error data
+   - Measure improvement: accuracy, precision, recall
+
+#### 3. **Add Caching**
+   - Implement Redis caching for identical errors
+   - Cache LLM responses to reduce API costs
+   - Set appropriate TTL (time-to-live)
+   - Track cache hit rate
+   - **Goal**: Reduce API calls by 60-80%
+
+#### 4. **Better Error Clustering**
+   - Implement HDBSCAN or DBSCAN (better than K-means)
+   - Auto-determine optimal cluster count
+   - Generate embeddings for all error types
+   - Visualize clusters for instructors
+   - Group similar student mistakes
+
+### **Immediate Tasks** (First Week)
 
 1. ✅ Verify service starts and responds to health check
-2. ✅ Test `/classify` endpoint with sample errors
-3. ✅ Review `main.py` to understand current implementation
-4. 🔲 Add your LLM improvements
+2. ✅ Test `/errors/classify` endpoint with rule-based classification
+3. ✅ Review `main.py`, `error_classifier.py`, `llm_client.py`
+4. 🔲 **Research and select LLM provider (Budget analysis required)**
+5. 🔲 **Set up API key and test LLM integration**
+6. 🔲 Benchmark rule-based vs LLM accuracy
+7. 🔲 Design caching strategy
 
-### **Enhancement Ideas**
+### **Current State** (What Works Now)
 
-1. **Improve Classification Accuracy**
-   - Fine-tune prompts in `main.py`
-   - Add more context (problem description, test cases)
-   - Experiment with different LLM models
+### **Current State** (What Works Now)
 
-2. **Add Caching**
-   - Cache identical errors to reduce API calls
-   - Use Redis for distributed caching
+- ✅ **Rule-based classification**: Fast, works for ~20 common error patterns
+- ✅ **Service architecture**: FastAPI endpoints ready
+- ✅ **LLM integration code**: Written but inactive (no API key)
+- ✅ **Fallback logic**: LLM triggers when rule confidence < 0.75
+- ❌ **LLM provider**: Not selected yet
+- ❌ **Caching**: Not implemented
+- ❌ **Embeddings/Clustering**: Not implemented
 
-3. **Better Error Clustering**
-   - Implement HDBSCAN instead of K-means
-   - Auto-determine optimal cluster count
-   - Add hierarchical clustering
+### **Enhancement Ideas** (Beyond Core Responsibilities)
 
-4. **Extended Features**
+1. **~~Improve Classification Accuracy~~** ✅ *Core responsibility - see above*
+
+2. **~~Add Caching~~** ✅ *Core responsibility - see above*
+
+3. **~~Better Error Clustering~~** ✅ *Core responsibility - see above*
+
+4. **Extended Features** (Future work)
    - Code suggestions/fixes
    - Personalized hints based on student level
    - Multi-language support improvements
