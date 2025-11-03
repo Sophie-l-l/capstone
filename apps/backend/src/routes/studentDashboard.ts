@@ -24,11 +24,22 @@ router.get("/:id/dashboard", async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Student ID is required" });
     }
 
-    // Fetch basic student info
-    const student = await prisma.user.findUnique({
+    // Fetch basic student info. First try id lookup; in dev the frontend sometimes
+    // passes a username or numeric id (e.g. "1") so fall back to username lookup
+    // for convenience in local development.
+    let student = await prisma.user.findUnique({
       where: { id },
       select: { id: true, name: true, email: true }
     });
+
+    if (!student) {
+      // Fallback: try lookup by username (helps when frontend uses a numeric or
+      // short username during dev/mock auth flows).
+      student = await prisma.user.findUnique({
+        where: { username: id },
+        select: { id: true, name: true, email: true }
+      });
+    }
 
     if (!student) {
       return res.status(404).json({ message: "Student not found" });

@@ -1,8 +1,10 @@
 from fastapi import FastAPI
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from error_classifier import classify_error, ClassifyRequest, ClassifyResponse
+from openai import OpenAI
 
 app = FastAPI(title="AI-Service", version="1.0.0")
 
@@ -28,6 +30,67 @@ class BKTUpdate(BaseModel):
 @app.get("/health")
 def health():
     return { "status": "ok", "service": "ai-service" }
+
+
+# Debug endpoint (temporary) - returns masked env var presence for troubleshooting
+@app.get("/debug/env")
+def debug_env():
+    def mask(v: str | None):
+        if v is None:
+            return None
+        return (v[:10] + "...") if len(v) > 10 else v
+
+    return {
+        "OPENAI_API_KEY": mask(os.getenv("OPENAI_API_KEY")),
+        "OPENAI_MODEL": os.getenv("OPENAI_MODEL"),
+        "LLM_MIN_CONFIDENCE": os.getenv("LLM_MIN_CONFIDENCE"),
+        "OPENAI_BASE_URL": os.getenv("OPENAI_BASE_URL"),
+        "OPENAI_API_BASE": os.getenv("OPENAI_API_BASE"),
+        "OPENAI_API_BASE_URL": os.getenv("OPENAI_API_BASE_URL"),
+        "HTTP_PROXY": os.getenv("HTTP_PROXY"),
+        "HTTPS_PROXY": os.getenv("HTTPS_PROXY"),
+        "ALL_PROXY": os.getenv("ALL_PROXY"),
+        # lowercase variants (httpx and many tools respect these)
+        "http_proxy": os.getenv("http_proxy"),
+        "https_proxy": os.getenv("https_proxy"),
+        "all_proxy": os.getenv("all_proxy"),
+    }
+
+
+@app.get("/debug/openai")
+def debug_openai():
+    """Construct an OpenAI client object and return what base-url attributes it exposes.
+    This helps diagnose which URL the SDK will attempt to call (no network requests).
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    base_url = os.getenv("OPENAI_BASE_URL") or None
+    try:
+        client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
+    except Exception as e:
+        return {"error": str(e)}
+
+    def first_non_none(*vals):
+        for v in vals:
+            if v:
+                return v
+        return None
+
+    candidate_urls = {
+        "client.base_url": getattr(client, "base_url", None),
+        "client._base_url": getattr(client, "_base_url", None),
+        "client._client.base_url": getattr(getattr(client, "_client", None), "base_url", None),
+        "client._client._base_url": getattr(getattr(client, "_client", None), "_base_url", None),
+    }
+
+    # Mask any long values
+    def mask_val(v):
+        if v is None:
+            return None
+        s = str(v)
+        return s if len(s) < 100 else s[:100] + "..."
+
+    return {k: mask_val(v) for k, v in candidate_urls.items()}
+
 
 @app.post("/bkt/update")
 def update_bkt(data: BKTUpdate):
