@@ -23,6 +23,7 @@ let codeExecutionRoutes: any = require("./routes/codeExecution");
 let studentDashboardRoutes: any = require("./routes/studentDashboard");
 let studentSubmissionsRoutes: any = require("./routes/studentSubmissions");
 let studentErrorsRoutes: any = require("./routes/studentErrors");
+let errorsRoutes: any = null;
 let devRoutes: any = null;
 if (process.env.NODE_ENV !== 'production') {
   try {
@@ -46,6 +47,7 @@ codeExecutionRoutes = normalizeRouter(codeExecutionRoutes);
 studentDashboardRoutes = normalizeRouter(studentDashboardRoutes);
 studentSubmissionsRoutes = normalizeRouter(studentSubmissionsRoutes);
 studentErrorsRoutes = normalizeRouter(studentErrorsRoutes);
+errorsRoutes = normalizeRouter(errorsRoutes);
 devRoutes = normalizeRouter(devRoutes);
 
 // Minimal diagnostics: ensure routers were loaded
@@ -107,6 +109,17 @@ if (!studentDashboardRoutes && !studentSubmissionsRoutes && !studentErrorsRoutes
   console.error('No student routes available to mount under /api/students');
 } else {
   app.use("/api/students", studentsCombined);
+}
+
+// Analysis routes (AI-related)
+try {
+  errorsRoutes = require("./routes/errors");
+} catch (e) {
+  console.error('Errors analysis routes not available:', e);
+}
+errorsRoutes = normalizeRouter(errorsRoutes);
+if (errorsRoutes) {
+  app.use("/api/errors", errorsRoutes);
 }
 
 // Dev-only endpoints

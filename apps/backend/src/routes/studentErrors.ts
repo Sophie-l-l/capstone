@@ -28,6 +28,10 @@ router.get("/:id/errors", async (req: Request, res: Response) => {
         id: err.id,
         label: err.signature?.label || "Unknown",
         confidence: err.signature?.confidence || 0,
+        // Expose a small embedding preview and length for dev/debugging
+        embedding: err.signature?.embedding || null,
+        embeddingLength: Array.isArray(err.signature?.embedding) ? err.signature?.embedding.length : 0,
+        embeddingPreview: Array.isArray(err.signature?.embedding) ? (err.signature?.embedding.slice(0, 8)) : null,
         problemTitle: err.submission.problem?.title || "Unknown",
         problemId: err.submission.problemId,
         submissionId: err.submission.id,

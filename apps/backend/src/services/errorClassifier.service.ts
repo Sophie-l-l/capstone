@@ -43,7 +43,7 @@ function hashError(text: string): string {
 /**
  * Call AI service to classify an error
  */
-async function classifyWithAI(text: string, language: string | null): Promise<AIClassifyResponse> {
+export async function classifyWithAI(text: string, language: string | null): Promise<AIClassifyResponse> {
   try {
     const response = await axios.post<AIClassifyResponse>(
       `${AI_SERVICE_URL}/errors/classify`,
@@ -109,8 +109,14 @@ export async function recordSubmissionError(opts: {
   language: string;
   compileOutput?: string | null;
   stderr?: string | null;
+  code?: string | null;
 }): Promise<void> {
-  const errorText = (opts.compileOutput || opts.stderr || "").trim();
+  // Include the submitted code alongside the compile/runtime output to give the
+  // AI more context for deep analysis. The combined text will be used for
+  // classification and embedding generation.
+  const outputText = (opts.compileOutput || opts.stderr || "").trim();
+  const codeText = (opts.code || "").trim();
+  const errorText = (codeText ? `Code:\n${codeText}\n\nError:\n${outputText}` : outputText).trim();
   
   if (!errorText) {
     // No error to record
@@ -167,7 +173,7 @@ export async function getStudentRecentErrors(userId: string, limit: number = 20)
     take: limit,
     include: {
       signature: {
-        select: { label: true, confidence: true }
+        select: { label: true, confidence: true, embedding: true }
       },
       submission: {
         select: {

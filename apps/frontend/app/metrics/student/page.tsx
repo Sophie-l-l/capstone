@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import React from "react"
 import { useAuth } from "@/lib/auth-context"
 import { apiUrl } from "@/lib/config"
 import { ProtectedRoute } from "@/components/protected-route"
@@ -17,6 +18,65 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts"
 
+// Simple client-side k-means for small demos: returns label per row
+function euclideanSq(a: number[], b: number[]) {
+  let s = 0
+  for (let i = 0; i < a.length; i++) {
+    const d = (a[i] || 0) - (b[i] || 0)
+    s += d * d
+  }
+  return s
+}
+
+function kmeans(X: number[][], k: number, maxIters = 10): number[] {
+  if (X.length === 0) return []
+  const dim = X[0].length
+  // initialize centroids as first k distinct points (or random fallback)
+  const centroids: number[][] = []
+  const used = new Set<number>()
+  for (let i = 0; i < k; i++) {
+    let idx = i % X.length
+    // try to find a distinct point
+    let attempts = 0
+    while (used.has(idx) && attempts < X.length) { idx = (idx + 1) % X.length; attempts++ }
+    used.add(idx)
+    centroids.push(X[idx].slice(0, dim))
+  }
+
+  let labels = new Array(X.length).fill(0)
+
+  for (let iter = 0; iter < maxIters; iter++) {
+    let changed = false
+    // assign
+    for (let i = 0; i < X.length; i++) {
+      let best = 0
+      let bestD = euclideanSq(X[i], centroids[0])
+      for (let c = 1; c < centroids.length; c++) {
+        const d = euclideanSq(X[i], centroids[c])
+        if (d < bestD) { bestD = d; best = c }
+      }
+      if (labels[i] !== best) { labels[i] = best; changed = true }
+    }
+
+    // recompute centroids
+    const sums = Array.from({ length: k }, () => new Array(dim).fill(0))
+    const counts = new Array(k).fill(0)
+    for (let i = 0; i < X.length; i++) {
+      const l = labels[i]
+      counts[l]++
+      for (let d = 0; d < dim; d++) sums[l][d] += X[i][d] || 0
+    }
+    for (let c = 0; c < k; c++) {
+      if (counts[c] === 0) continue
+      for (let d = 0; d < dim; d++) centroids[c][d] = sums[c][d] / counts[c]
+    }
+
+    if (!changed) break
+  }
+
+  return labels
+}
+
 type StudentResponse = {
   student: { id: string; name: string; email: string; totalSubmissions: number; accuracy: number }
   accuracyByLanguage: { language: string; accuracy: number }[]
@@ -31,6 +91,9 @@ type ErrorAnalytics = {
     id: string
     label: string
     confidence: number
+    embedding?: number[] | null
+    embeddingLength?: number
+    embeddingPreview?: number[] | null
   problemTitle: string
   problemId: string
   language: string
@@ -57,6 +120,9 @@ export default function StudentDashboardPage() {
   // Error analytics state
   const [errorData, setErrorData] = useState<ErrorAnalytics | null>(null)
   const [errorLoading, setErrorLoading] = useState(true)
+  const [showEmbeddingPreview, setShowEmbeddingPreview] = useState(false)
+  const [clusterCount, setClusterCount] = useState(2)
+  const [clusters, setClusters] = useState<Record<string, number>>({})
 
   // Submissions modal state
   const [submissionsOpen, setSubmissionsOpen] = useState(false)
@@ -444,9 +510,9 @@ export default function StudentDashboardPage() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Top Error Types</CardTitle>
-              </CardHeader>
+        <CardHeader>
+          <CardTitle>Top Error Types</CardTitle>
+        </CardHeader>
               <CardContent className="h-64">
                 {errorLoading ? (
                   <p className="text-sm text-muted-foreground">Loading error analytics...</p>
@@ -567,36 +633,85 @@ export default function StudentDashboardPage() {
           {/* Recent Errors Section */}
           {!errorLoading && errorData && errorData.recentErrors.length > 0 && (
             <Card>
-              <CardHeader>
+              <CardHeader className="flex items-center justify-between">
                 <CardTitle>Recent Errors</CardTitle>
+                <div className="flex items-center gap-3">
+                  <label className="text-xs flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={showEmbeddingPreview}
+                      onChange={(e) => setShowEmbeddingPreview(e.target.checked)}
+                    />
+                    <span>Show embeddings</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={clusterCount}
+                      onChange={(e) => setClusterCount(Math.max(1, Math.min(10, Number(e.target.value || 2))))}
+                      className="w-16 text-sm px-2 py-1 rounded border"
+                      aria-label="cluster-count"
+                    />
+                    <button
+                      className="px-2 py-1 text-xs rounded bg-primary text-white"
+                      onClick={() => {
+                        const items = (errorData.recentErrors || []).filter((r) => Array.isArray(r.embedding) && (r.embedding as number[]).length > 0)
+                        if (items.length === 0) return
+                        const X = items.map((r) => (r.embedding as number[]))
+                        const labels = kmeans(X, clusterCount, 10)
+                        const map: Record<string, number> = {}
+                        items.forEach((it, idx) => { map[it.id] = labels[idx] })
+                        setClusters(map)
+                      }}
+                    >
+                      Cluster
+                    </button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {errorData.recentErrors.map((error) => (
-                    <div key={error.id} className="border rounded-lg p-4 space-y-2">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-destructive">{error.label}</span>
-                            <span className="text-xs px-2 py-1 bg-muted rounded">
-                              {Math.round(error.confidence * 100)}% confidence
-                            </span>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            Problem: <span className="font-medium">{error.problemTitle}</span> ({error.language})
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(error.createdAt).toLocaleString()}
+                  {errorData.recentErrors.map((error: ErrorAnalytics['recentErrors'][number]) => {
+                    const preview = error.embeddingPreview ?? (Array.isArray(error.embedding) ? (error.embedding as number[]).slice(0, 8) : null)
+                    return (
+                      <div key={error.id} className="border rounded-lg p-4 space-y-2">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-destructive">{error.label}</span>
+                              <span className="text-xs px-2 py-1 bg-muted rounded">{Math.round(error.confidence * 100)}% confidence</span>
+                              {clusters[error.id] !== undefined && (
+                                <span className="text-xs px-2 py-1 rounded bg-amber-200 text-amber-800">Cluster {clusters[error.id]}</span>
+                              )}
+                              {showEmbeddingPreview && error.embeddingLength ? (
+                                <span className="text-xs px-2 py-1 rounded bg-muted/80">emb {error.embeddingLength}</span>
+                              ) : null}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Problem: <span className="font-medium">{error.problemTitle}</span> ({error.language})
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(error.createdAt).toLocaleString()}
+                            </div>
                           </div>
                         </div>
+                        {(error.compileOutput || error.stderr) && (
+                          <div className="mt-2 p-3 bg-muted/50 rounded text-xs font-mono overflow-x-auto">
+                            <pre className="whitespace-pre-wrap">{error.compileOutput || error.stderr}</pre>
+                          </div>
+                        )}
+
+                        {showEmbeddingPreview && preview && (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            <div className="font-medium">Embedding preview (first {preview.length} dims)</div>
+                            <div className="mt-1 font-mono text-[11px] bg-slate-50 p-2 rounded overflow-x-auto">[{preview.map((v) => (v as number).toFixed(4)).join(', ')}{error.embeddingLength && error.embeddingLength > preview.length ? ', ...' : ''}]</div>
+                          </div>
+                        )}
                       </div>
-                      {(error.compileOutput || error.stderr) && (
-                        <div className="mt-2 p-3 bg-muted/50 rounded text-xs font-mono overflow-x-auto">
-                          <pre className="whitespace-pre-wrap">{error.compileOutput || error.stderr}</pre>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </CardContent>
             </Card>

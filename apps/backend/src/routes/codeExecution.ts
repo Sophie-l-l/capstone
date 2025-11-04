@@ -201,7 +201,8 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
           submissionId: submission.id,
           language,
           compileOutput: lastResult.compile_output,
-          stderr: lastResult.stderr
+          stderr: lastResult.stderr,
+          code // include the submitted code so the AI can analyze it together with the error
         });
       } catch (e) {
         console.error('Error recording submission error:', e);

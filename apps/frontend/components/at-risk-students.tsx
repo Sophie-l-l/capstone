@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import type { StudentProgress } from "@/lib/mock-data"
+import type { StudentProgress } from "@/lib/types"
 import { AlertTriangle, Mail } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
@@ -57,7 +57,7 @@ export function AtRiskStudents({ students }: AtRiskStudentsProps) {
                   </div>
                   <div className="flex flex-wrap gap-1">
                     <span className="text-xs text-muted-foreground">Weak areas:</span>
-                    {student.weakAreas.map((area) => (
+                    {student.weakAreas.map((area: string) => (
                       <Badge key={area} variant="secondary" className="text-xs">
                         {area}
                       </Badge>

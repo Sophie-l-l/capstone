@@ -7,12 +7,30 @@ import re
 from typing import Optional
 import os
 from llm_client import classify_with_llm, generate_embedding
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 
 
 class ClassifyRequest(BaseModel):
-    text: str
+    # Accept multiple common field names for backward compatibility with older clients
+    text: Optional[str] = None
+    error_text: Optional[str] = None
+    error_message: Optional[str] = None
     language: Optional[str] = None
+
+    @root_validator(pre=True)
+    def ensure_text_present(cls, values):
+        # Prefer explicit 'text', otherwise fall back to common legacy keys
+        if not values.get("text"):
+            if values.get("error_text"):
+                values["text"] = values.get("error_text")
+            elif values.get("error_message"):
+                values["text"] = values.get("error_message")
+
+        if not values.get("text"):
+            # Let Pydantic raise a clear validation error if none provided
+            raise ValueError("one of 'text', 'error_text' or 'error_message' is required")
+
+        return values
 
 
 class ClassifyResponse(BaseModel):

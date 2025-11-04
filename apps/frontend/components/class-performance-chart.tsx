@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from "recharts"
-import type { ClassAnalytics } from "@/lib/mock-data"
+import type { ClassAnalytics } from "@/lib/types"
 
 interface ClassPerformanceChartProps {
   data: ClassAnalytics["weeklyActivity"]

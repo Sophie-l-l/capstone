@@ -10,12 +10,12 @@ const prisma = new PrismaClient();
 // { submissionId: string, language: string, compileOutput?: string, stderr?: string }
 router.post("/save-error", async (req: any, res: any) => {
   try {
-    const { submissionId, language, compileOutput, stderr } = req.body || {};
+    const { submissionId, language, compileOutput, stderr, code } = req.body || {};
     if (!submissionId || !language) {
       return res.status(400).json({ message: "submissionId and language are required" });
     }
 
-    await recordSubmissionError({ submissionId, language, compileOutput, stderr });
+    await recordSubmissionError({ submissionId, language, compileOutput, stderr, code });
     return res.status(201).json({ ok: true });
   } catch (err: any) {
     console.error("/api/dev/save-error failed:", err);

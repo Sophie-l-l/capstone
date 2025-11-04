@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import type { StudentProgress } from "@/lib/mock-data"
+import type { StudentProgress } from "@/lib/types"
 import { Search, ArrowUpDown } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
@@ -124,7 +124,7 @@ export function StudentProgressTable({ students }: StudentProgressTableProps) {
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {student.weakAreas.slice(0, 2).map((area) => (
+                      {student.weakAreas.slice(0, 2).map((area: string) => (
                         <Badge key={area} variant="secondary" className="text-xs">
                           {area}
                         </Badge>
