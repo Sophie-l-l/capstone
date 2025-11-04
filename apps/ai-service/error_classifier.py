@@ -6,7 +6,7 @@ Uses rule-based matching for common patterns, with optional LLM fallback.
 import re
 from typing import Optional
 import os
-from llm_client import classify_with_llm
+from llm_client import classify_with_llm, generate_embedding
 from pydantic import BaseModel
 
 
@@ -148,16 +148,30 @@ def classify_error(request: ClassifyRequest) -> ClassifyResponse:
         if confidence < float(os.getenv("LLM_MIN_CONFIDENCE", "0.75")):
             llm_result = classify_with_llm(normalized, request.language)
             if llm_result:
-                label, confidence = llm_result
+                # llm_result may include embedding (label, confidence, embedding)
+                if len(llm_result) == 3:
+                    label, confidence, embedding = llm_result
+                else:
+                    label, confidence = llm_result[0], llm_result[1]
                 source = "llm"
     except Exception:
         # Ignore LLM errors and keep rule-based result
+        embedding = None
         pass
+
+    # Ensure we have an embedding for clustering even if rule-based path hit
+    try:
+        if 'embedding' not in locals() or embedding is None:
+            emb = generate_embedding(normalized)
+            if emb:
+                embedding = emb
+    except Exception:
+        embedding = None
 
     return ClassifyResponse(
         label=label,
         confidence=confidence,
-        embedding=None,  # TODO: Generate embeddings for clustering
+        embedding=embedding if 'embedding' in locals() else None,
         normalized_text=normalized,
         source=source,
     )

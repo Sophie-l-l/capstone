@@ -5,6 +5,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 from error_classifier import classify_error, ClassifyRequest, ClassifyResponse
 from openai import OpenAI
+from pydantic import BaseModel
+import numpy as np
+from sklearn.cluster import KMeans
 
 app = FastAPI(title="AI-Service", version="1.0.0")
 
@@ -109,6 +112,33 @@ def classify_error_endpoint(request: ClassifyRequest):
     Uses rule-based matching for common patterns, with future LLM fallback.
     """
     return classify_error(request)
+
+
+class ClusterRequest(BaseModel):
+    embeddings: List[List[float]]
+    n_clusters: Optional[int] = 5
+
+
+@app.post("/errors/cluster")
+def cluster_embeddings(req: ClusterRequest):
+    """Run k-means clustering on provided embeddings and return cluster ids.
+
+    This endpoint accepts a JSON body with `embeddings` (array of vectors) and
+    optional `n_clusters`. It returns a list of cluster assignments.
+    """
+    embs = np.array(req.embeddings)
+    if embs.size == 0:
+        return {"clusters": [], "n_clusters": 0}
+
+    # Cap n_clusters to number of items
+    k = max(1, min(req.n_clusters, embs.shape[0]))
+    try:
+        kmeans = KMeans(n_clusters=k, random_state=42)
+        labels = kmeans.fit_predict(embs)
+        centers = kmeans.cluster_centers_.tolist()
+        return {"clusters": labels.tolist(), "centers": centers}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 # Compatibility endpoint for clients that post { error_message: string }

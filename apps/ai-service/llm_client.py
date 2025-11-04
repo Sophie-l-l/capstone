@@ -8,7 +8,94 @@ from openai import OpenAI
 logger = logging.getLogger(__name__)
 
 
-def classify_with_llm(normalized_text: str, language: Optional[str] = None) -> Optional[Tuple[str, float]]:
+def generate_embedding(text: str) -> Optional[list]:
+    """Generate an embedding for the given text using OpenAI or Google provider.
+
+    Returns a list[float] on success or None on failure.
+    """
+    provider = os.getenv("LLM_PROVIDER", "openai").lower()
+    if provider == "google":
+        try:
+            import google.generativeai as genai  # type: ignore
+        except Exception:
+            logger.warning("google.generativeai not installed; cannot generate embeddings")
+            return None
+
+        google_key = os.getenv("GOOGLE_API_KEY")
+        if google_key:
+            try:
+                genai.configure(api_key=google_key)
+            except Exception:
+                pass
+
+        try:
+            # try common embedding method names
+            if hasattr(genai, "get_embeddings"):
+                resp = genai.get_embeddings(texts=[text])
+                if isinstance(resp, dict) and resp.get("embeddings"):
+                    return resp["embeddings"][0]
+            elif hasattr(genai, "embeddings") and hasattr(genai.embeddings, "create"):
+                model = os.getenv("GOOGLE_EMBEDDING_MODEL", "embed-text-embedding-3-small")
+                resp = genai.embeddings.create(model=model, input=text)
+                if isinstance(resp, dict) and resp.get("data"):
+                    return resp["data"][0].get("embedding")
+            # newer google.generativeai versions expose embed_content/embed_content_async
+            elif hasattr(genai, "embed_content"):
+                model = os.getenv("GOOGLE_EMBEDDING_MODEL", "models/text-embedding-004")
+                resp = genai.embed_content(model=model, content=[text])
+                # resp shapes vary; try common dict/list shapes
+                if isinstance(resp, dict) and resp.get("embeddings"):
+                    return resp["embeddings"][0]
+                if isinstance(resp, dict) and resp.get("data"):
+                    return resp["data"][0].get("embedding")
+                # some versions return {'embedding': [[...]]} or {'embedding': [...]} 
+                if isinstance(resp, dict) and resp.get("embedding"):
+                    emb_val = resp.get("embedding")
+                    if isinstance(emb_val, list) and len(emb_val) > 0 and isinstance(emb_val[0], (list, tuple)):
+                        return emb_val[0]
+                    # single vector
+                    if isinstance(emb_val, list) and all(isinstance(x, (int, float)) for x in emb_val):
+                        return emb_val
+                # some SDK versions return a list/sequence of vectors
+                if isinstance(resp, (list, tuple)) and len(resp) > 0:
+                    return resp[0]
+        except Exception:
+            logger.exception("Google embedding generation failed")
+            return None
+
+        return None
+
+    # Default: OpenAI provider
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+
+    base_url = os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+    try:
+        if base_url and not base_url.startswith(("http://", "https://")):
+            base_url = "https://" + base_url
+        client = OpenAI(api_key=api_key, base_url=base_url)
+    except Exception:
+        try:
+            client = OpenAI(api_key=api_key)
+        except Exception:
+            logger.exception("Failed to construct OpenAI client for embeddings")
+            return None
+
+    try:
+        emb_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+        emb_resp = client.embeddings.create(model=emb_model, input=text)
+        if hasattr(emb_resp, "data") and len(emb_resp.data) > 0:
+            emb_item = emb_resp.data[0]
+            return getattr(emb_item, "embedding", None) or (emb_item.get("embedding") if isinstance(emb_item, dict) else None)
+    except Exception:
+        logger.exception("OpenAI embedding generation failed")
+        return None
+
+    return None
+
+
+def classify_with_llm(normalized_text: str, language: Optional[str] = None) -> Optional[Tuple[str, float, Optional[list]]]:
     """
     Ask an LLM to classify the error. Returns (label, confidence) or None on failure.
     Expects environment variables:
@@ -106,7 +193,22 @@ def classify_with_llm(normalized_text: str, language: Optional[str] = None) -> O
             data = json.loads(content)
             label = str(data.get("label", "Unknown error"))
             confidence = float(data.get("confidence", 0.5))
-            return (label, confidence)
+            # Try to also generate an embedding via OpenAI if available
+            embedding = None
+            try:
+                emb_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+                # Create embeddings using the OpenAI client
+                emb_resp = client.embeddings.create(model=emb_model, input=normalized_text)
+                # emb_resp.data is often a list with one item
+                if hasattr(emb_resp, "data") and len(emb_resp.data) > 0:
+                    emb_item = emb_resp.data[0]
+                    # different SDK shapes may store embedding under 'embedding' or 'vector'
+                    embedding = getattr(emb_item, "embedding", None) or (emb_item.get("embedding") if isinstance(emb_item, dict) else None)
+            except Exception:
+                # Ignore embedding failures; embedding stays None
+                embedding = None
+
+            return (label, confidence, embedding)
         except Exception:
             # Log the raw response and the exception for debugging (no secrets)
             try:
@@ -119,7 +221,7 @@ def classify_with_llm(normalized_text: str, language: Optional[str] = None) -> O
         return None
 
 
-def classify_with_gemini(normalized_text: str, language: Optional[str] = None) -> Optional[Tuple[str, float]]:
+def classify_with_gemini(normalized_text: str, language: Optional[str] = None) -> Optional[Tuple[str, float, Optional[list]]]:
     """Call Google Vertex/Generative AI (Gemini) to classify an error.
 
     This function imports `google.generativeai` lazily. It returns (label, confidence)
@@ -307,7 +409,41 @@ def classify_with_gemini(normalized_text: str, language: Optional[str] = None) -
         data = json.loads(content)
         label = str(data.get("label", "Unknown error"))
         confidence = float(data.get("confidence", 0.5))
-        return (label, confidence)
+        # Attempt to fetch embeddings via google generative API if available
+        embedding = None
+        try:
+            # try common embedding method names
+            if hasattr(genai, "get_embeddings"):
+                emb_resp = genai.get_embeddings(texts=[normalized_text])
+                # genai.get_embeddings may return dict-like
+                if isinstance(emb_resp, dict) and emb_resp.get("embeddings"):
+                    embedding = emb_resp["embeddings"][0]
+            elif hasattr(genai, "embeddings") and hasattr(genai.embeddings, "create"):
+                emb_resp = genai.embeddings.create(model=os.getenv("GOOGLE_EMBEDDING_MODEL", "embed-text-embedding-3-small"), input=normalized_text)
+                # try to extract embeddings
+                if isinstance(emb_resp, dict) and emb_resp.get("data"):
+                    embedding = emb_resp["data"][0].get("embedding")
+            elif hasattr(genai, "embed_content"):
+                try:
+                    emb_resp = genai.embed_content(model=os.getenv("GOOGLE_EMBEDDING_MODEL", "models/text-embedding-004"), content=[normalized_text])
+                    if isinstance(emb_resp, dict) and emb_resp.get("embeddings"):
+                        embedding = emb_resp["embeddings"][0]
+                    elif isinstance(emb_resp, dict) and emb_resp.get("data"):
+                        embedding = emb_resp["data"][0].get("embedding")
+                    elif isinstance(emb_resp, dict) and emb_resp.get("embedding"):
+                        ev = emb_resp.get("embedding")
+                        if isinstance(ev, list) and len(ev) > 0 and isinstance(ev[0], (list, tuple)):
+                            embedding = ev[0]
+                        elif isinstance(ev, list) and all(isinstance(x, (int, float)) for x in ev):
+                            embedding = ev
+                    elif isinstance(emb_resp, (list, tuple)) and len(emb_resp) > 0:
+                        embedding = emb_resp[0]
+                except Exception:
+                    embedding = None
+        except Exception:
+            embedding = None
+
+        return (label, confidence, embedding)
     except Exception:
         import re
 
