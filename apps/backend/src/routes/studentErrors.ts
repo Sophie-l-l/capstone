@@ -24,22 +24,40 @@ router.get("/:id/errors", async (req: Request, res: Response) => {
 
     res.json({
       topErrors,
-      recentErrors: recentErrors.map((err: any) => ({
-        id: err.id,
-        label: err.signature?.label || "Unknown",
-        confidence: err.signature?.confidence || 0,
-        // Expose a small embedding preview and length for dev/debugging
-        embedding: err.signature?.embedding || null,
-        embeddingLength: Array.isArray(err.signature?.embedding) ? err.signature?.embedding.length : 0,
-        embeddingPreview: Array.isArray(err.signature?.embedding) ? (err.signature?.embedding.slice(0, 8)) : null,
-        problemTitle: err.submission.problem?.title || "Unknown",
-        problemId: err.submission.problemId,
-        submissionId: err.submission.id,
-        language: err.language,
-        createdAt: err.createdAt,
-        compileOutput: err.compileOutput,
-        stderr: err.stderr
-      }))
+      recentErrors: recentErrors.map((err: any) => {
+        const sig = err.signature;
+        
+        // Construct label from academic fields (surface_error: specific_error)
+        const surfaceError = sig?.surfaceError || "Unknown";
+        const specificError = sig?.specificError || "Unknown error";
+        const label = `${surfaceError}: ${specificError}`;
+        
+        return {
+          id: err.id,
+          label, // Constructed from academic fields for backward compatibility
+          // Full academic fields from database (new schema)
+          surface_error: sig?.surfaceError || null,
+          specific_error: sig?.specificError || null,
+          compiler_excerpt: sig?.compilerExcerpt || null,
+          cognitive_cause: sig?.cognitiveCause || null,
+          bloom_level: sig?.bloomLevel || null,
+          reasoning: sig?.reasoning || null,
+          source: sig?.source || null,
+          confidence: sig?.confidence || null,
+          // Embedding data
+          embedding: sig?.embedding || null,
+          embeddingLength: Array.isArray(sig?.embedding) ? sig.embedding.length : 0,
+          embeddingPreview: Array.isArray(sig?.embedding) ? sig.embedding.slice(0, 8) : null,
+          // Submission context
+          problemTitle: err.submission.problem?.title || "Unknown",
+          problemId: err.submission.problemId,
+          submissionId: err.submission.id,
+          language: err.language,
+          createdAt: err.createdAt,
+          compileOutput: err.compileOutput,
+          stderr: err.stderr
+        };
+      })
     });
   } catch (error: unknown) {
     console.error("Get student errors error:", error);

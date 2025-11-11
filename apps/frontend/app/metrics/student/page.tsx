@@ -90,16 +90,26 @@ type ErrorAnalytics = {
   recentErrors: {
     id: string
     label: string
-    confidence: number
+    // Academic framework fields (from database)
+    surface_error?: string          // Lexical, Syntax, Semantic/Type, etc.
+    specific_error?: string         // Detailed error description
+    compiler_excerpt?: string       // Specific code/error excerpt
+    cognitive_cause?: string        // MENTAL_TYPO, KNOWLEDGE_GAP, MISCONCEPTION, etc.
+    bloom_level?: string            // Below Remember, Remember, Understand, Apply, Analyse, Evaluate, Create
+    reasoning?: string              // Full AI explanation
+    source?: string                 // rule-based | llm | llm-logic-error
+    confidence?: number             // 0.0-1.0
+    // Embedding fields
     embedding?: number[] | null
     embeddingLength?: number
     embeddingPreview?: number[] | null
-  problemTitle: string
-  problemId: string
-  language: string
-  createdAt: string
-  compileOutput: string | null
-  stderr: string | null
+    // Metadata
+    problemTitle: string
+    problemId: string
+    language: string
+    createdAt: string
+    compileOutput: string | null
+    stderr: string | null
   }[]
 }
 
@@ -488,7 +498,7 @@ export default function StudentDashboardPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Error Distribution</CardTitle>
+                <CardTitle>Submission Status Distribution</CardTitle>
               </CardHeader>
               <CardContent className="h-64 flex items-center justify-center">
                 {errorDistribution.length === 0 ? (
@@ -535,6 +545,129 @@ export default function StudentDashboardPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Academic Error Analysis */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Surface Error Categories</CardTitle>
+              </CardHeader>
+              <CardContent className="h-64">
+                {errorLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                ) : !errorData || errorData.recentErrors.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No errors recorded yet</p>
+                ) : (() => {
+                  const surfaceErrorCounts: Record<string, number> = {}
+                  errorData.recentErrors.forEach(err => {
+                    const surface = err.surface_error || 'Unknown'
+                    surfaceErrorCounts[surface] = (surfaceErrorCounts[surface] || 0) + 1
+                  })
+                  const surfaceData = Object.entries(surfaceErrorCounts)
+                    .map(([name, count]) => ({ name, count }))
+                    .sort((a, b) => b.count - a.count)
+                  
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={surfaceData} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="name" 
+                          angle={-45} 
+                          textAnchor="end" 
+                          height={80}
+                          tick={{ fontSize: 11 }}
+                        />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#10B981" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )
+                })()}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Cognitive Causes</CardTitle>
+              </CardHeader>
+              <CardContent className="h-64 flex items-center justify-center">
+                {errorLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                ) : !errorData || errorData.recentErrors.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No errors recorded yet</p>
+                ) : (() => {
+                  const cognitiveCounts: Record<string, number> = {}
+                  errorData.recentErrors.forEach(err => {
+                    const cause = err.cognitive_cause || 'Unknown'
+                    cognitiveCounts[cause] = (cognitiveCounts[cause] || 0) + 1
+                  })
+                  const cognitiveData = Object.entries(cognitiveCounts)
+                    .map(([name, count]) => ({ name, count }))
+                  
+                  const cognitiveColors = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#EF4444', '#10B981']
+                  
+                  return (
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie data={cognitiveData} dataKey="count" nameKey="name" outerRadius={80} label>
+                          {cognitiveData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={cognitiveColors[index % cognitiveColors.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )
+                })()}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Bloom Taxonomy Levels</CardTitle>
+              </CardHeader>
+              <CardContent className="h-64">
+                {errorLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                ) : !errorData || errorData.recentErrors.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No errors recorded yet</p>
+                ) : (() => {
+                  const bloomCounts: Record<string, number> = {}
+                  errorData.recentErrors.forEach(err => {
+                    const level = err.bloom_level || 'Unknown'
+                    bloomCounts[level] = (bloomCounts[level] || 0) + 1
+                  })
+                  
+                  // Order Bloom levels hierarchically
+                  const bloomOrder = ['Below Remember', 'Remember', 'Understand', 'Apply', 'Analyse', 'Evaluate', 'Create']
+                  const bloomData = bloomOrder
+                    .filter(level => bloomCounts[level])
+                    .map(level => ({ level, count: bloomCounts[level] }))
+                  
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={bloomData} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="level" 
+                          angle={-45} 
+                          textAnchor="end" 
+                          height={80}
+                          tick={{ fontSize: 11 }}
+                        />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#8B5CF6" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )
+                })()}
               </CardContent>
             </Card>
           </div>
@@ -678,10 +811,27 @@ export default function StudentDashboardPage() {
                     return (
                       <div key={error.id} className="border rounded-lg p-4 space-y-2">
                         <div className="flex items-start justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-destructive">{error.label}</span>
-                              <span className="text-xs px-2 py-1 bg-muted rounded">{Math.round(error.confidence * 100)}% confidence</span>
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-destructive">{error.surface_error || error.label}</span>
+                              {error.specific_error && (
+                                <span className="text-sm text-muted-foreground">→ {error.specific_error}</span>
+                              )}
+                              {error.cognitive_cause && (
+                                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                                  {error.cognitive_cause.replace(/_/g, ' ')}
+                                </span>
+                              )}
+                              {error.bloom_level && (
+                                <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">
+                                  {error.bloom_level}
+                                </span>
+                              )}
+                              {error.source && (
+                                <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                                  {error.source}
+                                </span>
+                              )}
                               {clusters[error.id] !== undefined && (
                                 <span className="text-xs px-2 py-1 rounded bg-amber-200 text-amber-800">Cluster {clusters[error.id]}</span>
                               )}
@@ -689,7 +839,17 @@ export default function StudentDashboardPage() {
                                 <span className="text-xs px-2 py-1 rounded bg-muted/80">emb {error.embeddingLength}</span>
                               ) : null}
                             </div>
-                            <div className="text-sm text-muted-foreground">
+                            {error.compiler_excerpt && (
+                              <div className="text-sm font-mono bg-muted/50 p-2 rounded mt-2">
+                                {error.compiler_excerpt}
+                              </div>
+                            )}
+                            {error.reasoning && (
+                              <div className="text-sm text-muted-foreground italic mt-2 pl-2 border-l-2 border-muted">
+                                {error.reasoning}
+                              </div>
+                            )}
+                            <div className="text-sm text-muted-foreground mt-2">
                               Problem: <span className="font-medium">{error.problemTitle}</span> ({error.language})
                             </div>
                             <div className="text-xs text-muted-foreground">

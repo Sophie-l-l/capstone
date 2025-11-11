@@ -44,6 +44,8 @@ def debug_env():
         return (v[:10] + "...") if len(v) > 10 else v
 
     return {
+        "GOOGLE_API_KEY": mask(os.getenv("GOOGLE_API_KEY")),
+        "GOOGLE_MODEL": os.getenv("GOOGLE_MODEL"),
         "OPENAI_API_KEY": mask(os.getenv("OPENAI_API_KEY")),
         "OPENAI_MODEL": os.getenv("OPENAI_MODEL"),
         "LLM_MIN_CONFIDENCE": os.getenv("LLM_MIN_CONFIDENCE"),
@@ -108,8 +110,73 @@ def update_bkt(data: BKTUpdate):
 @app.post("/errors/classify", response_model=ClassifyResponse)
 def classify_error_endpoint(request: ClassifyRequest):
     """
-    Classify compiler or runtime errors into semantic categories.
-    Uses rule-based matching for common patterns, with future LLM fallback.
+    **Enhanced Error Classification with Academic Framework**
+    
+    Classifies programming errors using IEEE 1044-2009 surface categories and 
+    Zehetmeier et al. (2015) cognitive causes with Bloom taxonomy.
+    
+    **Pipeline**:
+    1. Parse compiler/runtime error or detect logic error (test case mismatch)
+    2. Apply 60+ rule-based patterns for common errors
+    3. Fall back to Gemini 2.0-flash-exp if confidence < 0.75
+    4. Generate 768-dim embedding for clustering
+    
+    **Request Fields**:
+    - `text` (optional): Compiler/runtime error message
+    - `language` (optional): Programming language (python, java, cpp, c, javascript)
+    - `code` (optional): Student's code for context
+    - `test_case_input`, `expected_output`, `actual_output` (optional): For logic errors
+    - `problem_description` (optional): Problem statement for logic error context
+    
+    **Response Fields** (Academic Framework):
+    - `surface_error`: Technical category (Syntax, Semantic/Type, Runtime/Exception, etc.)
+    - `specific_error`: Fine-grained subtype (e.g., "Missing semicolon", "Null pointer")
+    - `compiler_excerpt`: Short quote from error message
+    - `cognitive_cause`: Why it happened (MENTAL_TYPO, KNOWLEDGE_GAP, MISCONCEPTION, etc.)
+    - `bloom_level`: Cognitive complexity (Below Remember → Create)
+    - `reasoning`: 2-3 sentence explanation
+    - `confidence`: 0-1 classification confidence
+    - `embedding`: 768-dim vector for clustering
+    - `source`: "rule-based", "llm", or "llm-logic-error"
+    
+    **Examples**:
+    
+    *Syntax Error*:
+    ```json
+    {
+      "text": "main.c:5:10: error: expected ';' before 'return'",
+      "language": "c"
+    }
+    ```
+    Response:
+    ```json
+    {
+      "surface_error": "Syntax/Lexical",
+      "specific_error": "Missing semicolon",
+      "cognitive_cause": "MENTAL_TYPO",
+      "bloom_level": "Below Remember"
+    }
+    ```
+    
+    *Logic Error*:
+    ```json
+    {
+      "code": "def sum(arr): total = 0\\n for i in range(len(arr)-1): total += arr[i]\\n return total",
+      "test_case_input": "[1,2,3,4,5]",
+      "expected_output": "15",
+      "actual_output": "10",
+      "language": "python"
+    }
+    ```
+    Response:
+    ```json
+    {
+      "surface_error": "Functional/Logic",
+      "specific_error": "Off-by-one error in loop",
+      "cognitive_cause": "STRUCTURAL_BLINDNESS",
+      "bloom_level": "Apply"
+    }
+    ```
     """
     return classify_error(request)
 
@@ -156,9 +223,19 @@ class LegacyClassifyResponse(BaseModel):
 
 @app.post("/errors/classify-legacy", response_model=LegacyClassifyResponse)
 def classify_error_legacy(req: LegacyClassifyRequest):
+    """
+    **Legacy Endpoint for Backward Compatibility**
+    
+    Maintains compatibility with clients expecting simple { label, confidence } format.
+    
+    Internally uses enhanced classification but returns simplified response.
+    The `label` field combines surface_error + specific_error.
+    
+    **Deprecated**: Use `/errors/classify` for full academic framework details.
+    """
     result = classify_error(ClassifyRequest(text=req.error_message, language=req.language))
     return LegacyClassifyResponse(
-        label=result.label,
+        label=result.label,  # Uses @property that combines surface + specific
         confidence=result.confidence,
         embedding=result.embedding,
         source=result.source,

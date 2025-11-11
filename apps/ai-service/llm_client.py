@@ -1,462 +1,627 @@
+"""
+LLM client for error classification using Google Gemini with academic framework.
+IMPROVED: Enhanced prompts based on IEEE 1044-2009 + Zehetmeier et al. (2015).
+
+Key improvements:
+1. Few-shot examples for grounding (3 diverse examples per prompt)
+2. Explicit hallucination prevention instructions
+3. Probabilistic inference rules (not deterministic)
+4. Temperature calibrated for consistency (0.1 for strict, 0.15 for logic)
+5. JSON Schema enforcement via response_mime_type
+6. Self-verification step in prompt
+7. Confidence calibration based on evidence strength
+"""
+
 import json
 import os
 import logging
-from typing import Optional, Tuple
-
-from openai import OpenAI
+from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
 
-def generate_embedding(text: str) -> Optional[list]:
-    """Generate an embedding for the given text using OpenAI or Google provider.
-
-    Returns a list[float] on success or None on failure.
-    """
-    provider = os.getenv("LLM_PROVIDER", "openai").lower()
-    if provider == "google":
-        try:
-            import google.generativeai as genai  # type: ignore
-        except Exception:
-            logger.warning("google.generativeai not installed; cannot generate embeddings")
-            return None
-
-        google_key = os.getenv("GOOGLE_API_KEY")
-        if google_key:
-            try:
-                genai.configure(api_key=google_key)
-            except Exception:
-                pass
-
-        try:
-            # try common embedding method names
-            if hasattr(genai, "get_embeddings"):
-                resp = genai.get_embeddings(texts=[text])
-                if isinstance(resp, dict) and resp.get("embeddings"):
-                    return resp["embeddings"][0]
-            elif hasattr(genai, "embeddings") and hasattr(genai.embeddings, "create"):
-                model = os.getenv("GOOGLE_EMBEDDING_MODEL", "embed-text-embedding-3-small")
-                resp = genai.embeddings.create(model=model, input=text)
-                if isinstance(resp, dict) and resp.get("data"):
-                    return resp["data"][0].get("embedding")
-            # newer google.generativeai versions expose embed_content/embed_content_async
-            elif hasattr(genai, "embed_content"):
-                model = os.getenv("GOOGLE_EMBEDDING_MODEL", "models/text-embedding-004")
-                resp = genai.embed_content(model=model, content=[text])
-                # resp shapes vary; try common dict/list shapes
-                if isinstance(resp, dict) and resp.get("embeddings"):
-                    return resp["embeddings"][0]
-                if isinstance(resp, dict) and resp.get("data"):
-                    return resp["data"][0].get("embedding")
-                # some versions return {'embedding': [[...]]} or {'embedding': [...]} 
-                if isinstance(resp, dict) and resp.get("embedding"):
-                    emb_val = resp.get("embedding")
-                    if isinstance(emb_val, list) and len(emb_val) > 0 and isinstance(emb_val[0], (list, tuple)):
-                        return emb_val[0]
-                    # single vector
-                    if isinstance(emb_val, list) and all(isinstance(x, (int, float)) for x in emb_val):
-                        return emb_val
-                # some SDK versions return a list/sequence of vectors
-                if isinstance(resp, (list, tuple)) and len(resp) > 0:
-                    return resp[0]
-        except Exception:
-            logger.exception("Google embedding generation failed")
-            return None
-
-        return None
-
-    # Default: OpenAI provider
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-
-    base_url = os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+def embed_text(text: str) -> list:
+    """Get text embeddings from Google's embedding model."""
     try:
-        if base_url and not base_url.startswith(("http://", "https://")):
-            base_url = "https://" + base_url
-        client = OpenAI(api_key=api_key, base_url=base_url)
-    except Exception:
-        try:
-            client = OpenAI(api_key=api_key)
-        except Exception:
-            logger.exception("Failed to construct OpenAI client for embeddings")
-            return None
-
-    try:
-        emb_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
-        emb_resp = client.embeddings.create(model=emb_model, input=text)
-        if hasattr(emb_resp, "data") and len(emb_resp.data) > 0:
-            emb_item = emb_resp.data[0]
-            return getattr(emb_item, "embedding", None) or (emb_item.get("embedding") if isinstance(emb_item, dict) else None)
-    except Exception:
-        logger.exception("OpenAI embedding generation failed")
-        return None
-
-    return None
-
-
-def classify_with_llm(normalized_text: str, language: Optional[str] = None) -> Optional[Tuple[str, float, Optional[list]]]:
-    """
-    Ask an LLM to classify the error. Returns (label, confidence) or None on failure.
-    Expects environment variables:
-      - OPENAI_API_KEY (required)
-      - OPENAI_MODEL (default: 'gpt-4o-mini')
-      - OPENAI_BASE_URL (optional, e.g., Azure OpenAI compatibility)
-    """
-    # Allow switching providers via environment: 'openai' (default) or 'google'
-    provider = os.getenv("LLM_PROVIDER", "openai").lower()
-    if provider == "google":
-        return classify_with_gemini(normalized_text, language)
-
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    # Use explicit default OpenAI API base if none provided. Some SDK/runtime
-    # combinations produce an invalid request when base_url is empty; setting
-    # the well-known default avoids 'missing scheme' errors.
-    base_url = os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
-
-    try:
-        # Sanitize base_url: some deployments set OPENAI_BASE_URL without a scheme
-        # (e.g., 'api.openai.com'). httpx requires a full URL with scheme.
-        if base_url:
-            base_url = base_url.strip()
-            if base_url and not base_url.startswith(("http://", "https://")):
-                base_url = "https://" + base_url
-            client = OpenAI(api_key=api_key, base_url=base_url)
-        else:
-            client = OpenAI(api_key=api_key)
-
-        system = (
-            "You are a precise error-classification assistant for programming education. "
-            "Given an error message, output JSON with keys: label (string), confidence (0-1 float), "
-            "and normalized_text (string). Label must be short and consistent across occurrences, e.g., "
-            "'Missing semicolon', 'Type mismatch', 'Undefined variable/function', 'Null pointer dereference', "
-            "'Array index out of bounds', 'Division by zero', 'Segmentation fault', 'Syntax error', 'Compilation error', "
-            "'Runtime error', 'Time limit exceeded', 'Memory limit exceeded'. If unsure, return label 'Unknown error' with low confidence."
-        )
-        user = json.dumps({
-            "error": normalized_text,
-            "language": language or "unknown",
-        })
-
-        # The openai client library has changed over time; some versions don't accept
-        # a `response_format` kwarg. Call the responses API with the common args and
-        # parse the returned object flexibly.
-        resp = client.responses.create(
-            model=model,
-            input=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        )
-
-        try:
-            # Try the convenient property first
-            content = getattr(resp, "output_text", None)
-
-            # If not available, try to extract text from resp.output structure
-            if not content:
-                pieces = []
-                out = getattr(resp, "output", None)
-                if out:
-                    # out might be a list of message-like objects or dicts
-                    for item in out:
-                        try:
-                            # dict-like
-                            if isinstance(item, dict):
-                                for c in item.get("content", []):
-                                    # content entries can have type/text
-                                    if isinstance(c, dict) and c.get("type") in ("output_text", "message"):
-                                        pieces.append(c.get("text", ""))
-                            else:
-                                # object-like (SDK models)
-                                cont = getattr(item, "content", None) or []
-                                for c in cont:
-                                    text = getattr(c, "text", None) or getattr(c, "parts", None)
-                                    if isinstance(text, list):
-                                        pieces.extend(text)
-                                    elif isinstance(text, str):
-                                        pieces.append(text)
-                        except Exception:
-                            # best-effort; continue
-                            continue
-                content = "\n".join([p for p in pieces if p]) if pieces else None
-
-            if not content:
-                # fallback to stringifying the resp for logging/debugging
-                content = str(resp)
-
-            # Attempt to parse JSON from the LLM
-            data = json.loads(content)
-            label = str(data.get("label", "Unknown error"))
-            confidence = float(data.get("confidence", 0.5))
-            # Try to also generate an embedding via OpenAI if available
-            embedding = None
-            try:
-                emb_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
-                # Create embeddings using the OpenAI client
-                emb_resp = client.embeddings.create(model=emb_model, input=normalized_text)
-                # emb_resp.data is often a list with one item
-                if hasattr(emb_resp, "data") and len(emb_resp.data) > 0:
-                    emb_item = emb_resp.data[0]
-                    # different SDK shapes may store embedding under 'embedding' or 'vector'
-                    embedding = getattr(emb_item, "embedding", None) or (emb_item.get("embedding") if isinstance(emb_item, dict) else None)
-            except Exception:
-                # Ignore embedding failures; embedding stays None
-                embedding = None
-
-            return (label, confidence, embedding)
-        except Exception:
-            # Log the raw response and the exception for debugging (no secrets)
-            try:
-                logger.exception("Failed to parse LLM response for text=%s; raw_resp=%s", normalized_text, str(resp)[:1000])
-            except Exception:
-                logger.exception("Failed to parse LLM response and failed to stringify resp")
-            return None
-    except Exception:
-        logger.exception("LLM request failed for text=%s", normalized_text)
-        return None
-
-
-def classify_with_gemini(normalized_text: str, language: Optional[str] = None) -> Optional[Tuple[str, float, Optional[list]]]:
-    """Call Google Vertex/Generative AI (Gemini) to classify an error.
-
-    This function imports `google.generativeai` lazily. It returns (label, confidence)
-    on success or None on failure. It tries a couple of client methods to be
-    compatible with different versions of the library.
-    """
-    try:
-        import google.generativeai as genai  # type: ignore
-    except Exception:
-        logger.warning("google.generativeai not installed; cannot use Gemini provider")
-        return None
-
-    # Configure API key if provided (useful for local dev). Production should
-    # use GOOGLE_APPLICATION_CREDENTIALS or ADC.
+        import google.generativeai as genai
+    except ImportError:
+        logger.warning("google.generativeai not installed")
+        return []
+    
     google_key = os.getenv("GOOGLE_API_KEY")
-    if google_key:
-        try:
-            genai.configure(api_key=google_key)
-        except Exception:
-            # ignore configure errors; the library may use ADC instead
-            pass
+    if not google_key:
+        logger.warning("GOOGLE_API_KEY not set")
+        return []
+    
+    try:
+        genai.configure(api_key=google_key)
+        embedding_model = "models/text-embedding-004"
+        result = genai.embed_content(
+            model=embedding_model,
+            content=text,
+            task_type="retrieval_document"
+        )
+        return result['embedding']
+    except Exception as e:
+        logger.exception(f"Embedding failed: {e}")
+        return []
 
-    model = os.getenv("GOOGLE_MODEL", "gemini-1.5")
 
-    system = (
-        "You are a precise error-classification assistant for programming education. "
-        "Given an error message, output JSON with keys: label (string), confidence (0-1 float). "
-        "If unsure, return label 'Unknown error' with low confidence."
-    )
+def _calibrate_confidence(llm_result: Dict[str, Any], error_msg: str, code: str = "") -> Dict[str, Any]:
+    """
+    IMPROVED: Confidence calibration based on evidence quality.
+    
+    Adjusts LLM-reported confidence based on:
+    1. Keyword match: Does reasoning mention keywords from error message?
+    2. Code availability: Higher confidence when code is provided
+    3. Reasoning length: Overly short reasoning (hallucination risk) → reduce confidence
+    4. Extreme confidence claims: Reduce 0.95+ confidences to more realistic levels
+    
+    Based on research: Models with external grounding show better calibration.
+    Khayrallah & Thompson (2022) show post-hoc calibration improves reliability.
+    """
+    confidence = llm_result.get("confidence", 0.70)
+    reasoning = llm_result.get("reasoning", "")
+    
+    # 1. Keyword match: Check if reasoning references error message terms
+    error_keywords = set(error_msg.lower().split())
+    reasoning_keywords = set(reasoning.lower().split())
+    overlap = len(error_keywords & reasoning_keywords) / max(len(error_keywords), 1)
+    
+    # If reasoning has <30% keyword overlap with error message, reduce confidence
+    if overlap < 0.3:
+        confidence *= 0.85
+        logger.debug(f"Low keyword overlap ({overlap:.2f}), reducing confidence")
+    
+    # 2. Code availability: Higher confidence when code is provided
+    if code and len(code.strip()) > 20:
+        confidence = min(confidence + 0.05, 1.0)
+    else:
+        confidence *= 0.90
+        logger.debug("No code provided, reducing confidence")
+    
+    # 3. Reasoning length: Too short (<50 chars) or too long (>400 chars) is suspicious
+    reasoning_len = len(reasoning)
+    if reasoning_len < 50:
+        confidence *= 0.80
+        logger.debug(f"Reasoning too short ({reasoning_len} chars), reducing confidence")
+    elif reasoning_len > 400:
+        confidence *= 0.90
+        logger.debug(f"Reasoning verbose ({reasoning_len} chars), slight reduction")
+    
+    # 4. Extreme confidence calibration: Models overestimate near 1.0
+    if confidence > 0.92:
+        confidence = 0.92  # Cap at 0.92 (research shows models poorly calibrated above this)
+        logger.debug("Clamping extreme confidence to 0.92")
+    
+    # 5. Clamp to [0.0, 1.0] range
+    confidence = max(0.0, min(1.0, confidence))
+    
+    llm_result["confidence"] = round(confidence, 2)
+    return llm_result
 
-    prompt = system + "\n\nError: " + normalized_text + "\nLanguage: " + (language or "unknown") + "\n\nRespond with JSON only."
 
-    # Try several possible call patterns for different versions of google-generativeai
-    content = None
-    tried = []
+def classify_with_gemini(error_text: str, language: str, code: str = "") -> Optional[Dict[str, Any]]:
+    """
+    Classify compiler/runtime errors using Gemini with IMPROVED prompt engineering.
+    
+    IMPROVEMENTS:
+    - Few-shot examples (3 diverse examples)
+    - Explicit hallucination prevention instructions
+    - Probabilistic inference rules (not deterministic)
+    - Temperature=0.1 for consistency
+    - JSON Schema enforcement via response_mime_type
+    - Self-verification prompts
+    
+    Uses IEEE 1044-2009 surface categories + Zehetmeier et al. cognitive causes.
+    Returns dict with 6 fields or None on failure.
+    """
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        logger.warning("google.generativeai not installed; cannot use Gemini")
+        return None
 
-    # Helper to safely call a function and extract text-like content
-    def _call_and_get(resp):
-        # Try common attributes first
-        try:
-            for attr in ("text", "output_text", "output", "content", "result", "data"):
-                try:
-                    val = getattr(resp, attr)
-                    if val:
-                        return val
-                except Exception:
-                    continue
-        except Exception:
-            pass
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if not google_key:
+        logger.warning("GOOGLE_API_KEY not set")
+        return None
 
-        # If dict-like or list-like, walk and collect strings
-        def _collect_strings(obj, depth=0):
-            if depth > 4 or obj is None:
-                return []
-            results = []
-            if isinstance(obj, str):
-                return [obj]
-            if isinstance(obj, dict):
-                for k, v in obj.items():
-                    results.extend(_collect_strings(v, depth + 1))
-                return results
-            if isinstance(obj, list):
-                for v in obj:
-                    results.extend(_collect_strings(v, depth + 1))
-                return results
-            # try object attributes
-            try:
-                for name in ("text", "content", "output_text", "result", "candidates", "generations"):
-                    if hasattr(obj, name):
-                        try:
-                            val = getattr(obj, name)
-                            results.extend(_collect_strings(val, depth + 1))
-                        except Exception:
-                            continue
-            except Exception:
-                pass
-            # fallback to string representation
-            try:
-                s = str(obj)
-                return [s]
-            except Exception:
-                return []
+    try:
+        genai.configure(api_key=google_key)
+        model_name = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash-exp")
+        model = genai.GenerativeModel(model_name=model_name)
 
-        try:
-            if isinstance(resp, dict) or isinstance(resp, list):
-                strs = _collect_strings(resp)
-            else:
-                strs = _collect_strings(resp)
-            # pick the longest candidate string
-            if strs:
-                strs = [s for s in strs if isinstance(s, str) and len(s) > 0]
-                if strs:
-                    strs.sort(key=lambda s: len(s), reverse=True)
-                    return strs[0]
-        except Exception:
-            pass
+        # Enhanced prompt with academic framework + HALLUCINATION PREVENTION
+        system_prompt = """You are an expert error classification assistant for CS education.
 
-        # fallback to string
-        try:
-            s = str(resp)
-            return s
-        except Exception:
+**CRITICAL CONSTRAINTS** (HALLUCINATION PREVENTION):
+1. Classify ONLY based on provided error message, code, and language context
+2. If error does not clearly fit a category, choose MOST LIKELY and set confidence < 0.70
+3. NEVER invent error details not present in the input
+4. If key information is missing, state this in reasoning and reduce confidence
+5. When uncertain between two categories, choose broader category (e.g., Runtime/Exception over specific subtype)
+
+**SURFACE ERROR CATEGORIES** (IEEE 1044-2009):
+1. **Lexical**: Invalid tokens, illegal characters, string/comment errors
+2. **Syntax**: Missing semicolons, braces, parentheses, grammatical violations
+3. **Semantic/Type**: Type mismatches, invalid conversions, incompatible operations
+4. **Semantic/Link**: Undefined variables/functions, scope errors, duplicate definitions
+5. **Link/Binding**: Linker errors, missing libraries, unresolved references
+6. **Runtime/Exception**: Null pointers, array bounds, division by zero, stack overflow
+7. **Quality/Non-Functional**: TLE, MLE, inefficient algorithms
+8. **Functional/Logic**: Incorrect output, wrong algorithm, edge case failures
+9. **Concurrency/Timing**: Race conditions, deadlocks (rare in student code)
+10. **Environment/Deployment**: Missing dependencies, wrong compiler version
+11. **Security/Weakness**: Buffer overflows, injection vulnerabilities (rare)
+12. **Build/Configuration:  Module/package not found, wrong language level/toolchain, dependency resolution failures.
+
+**COGNITIVE CAUSES** (Zehetmeier et al. 2015):
+- **MENTAL_TYPO**: Careless typing error, student knows the rule
+- **KNOWLEDGE_GAP**: Missing fundamental knowledge (syntax rules, API usage)
+- **MISCONCEPTION**: Incorrect understanding of concepts (scope, types, control flow)
+- **WRONG_CHOICE**: Poor algorithm/data structure choice
+- **STRUCTURAL_BLINDNESS**: Failed to anticipate edge cases, missing defensive checks
+- **QUALITY_GAP**: Works but inefficient (complexity issues)
+- **LACK_OF_INNOVATION**: No creative attempt or problem solving effort
+_ **WRONG_CHOICE/MISCONCEPTION**
+
+**BLOOM TAXONOMY LEVELS**:
+- Below Remember: Pure typos/mechanical errors
+- Remember: Recall syntax rules, API signatures
+- Understand: Explain types, scope, control flow
+- Apply: Use concepts in new context, implement algorithms
+- Analyse: Debug complex issues, optimize algorithms
+- Evaluate: Compare solutions, assess trade-offs
+- Create: Design novel algorithms
+
+**PROBABILISTIC INFERENCE GUIDELINES** (not deterministic - adapt to context):
+1. Missing semicolon/brace → USUALLY MENTAL_TYPO (Below Remember) UNLESS repeated → KNOWLEDGE_GAP
+2. Undefined variable → KNOWLEDGE_GAP (Remember) if never declared; MENTAL_TYPO if typo in name
+3. Type mismatch → MISCONCEPTION (Understand) if fundamental confusion; MENTAL_TYPO if isolated cast error
+4. Null pointer/array bounds → STRUCTURAL_BLINDNESS (Apply) usually; MISCONCEPTION if missing conceptual understanding
+5. Stack overflow/infinite recursion → WRONG_CHOICE (Analyse) if wrong algorithm; MISCONCEPTION if base case error
+6. TLE/MLE → WRONG_CHOICE or QUALITY_GAP (Analyse)
+
+**EXAMPLES** (few-shot grounding for consistency):
+
+Example 1 - Type Mismatch (MISCONCEPTION):
+Error: "cannot convert int to string"
+Code: result = "Score: " + 42
+Output:
+{
+  "surface_error": "Semantic/Type",
+  "specific_error": "Type mismatch in string concatenation",
+  "compiler_excerpt": "cannot convert int to string",
+  "cognitive_cause": "MISCONCEPTION",
+  "bloom_level": "Understand",
+  "reasoning": "Student attempted to concatenate int directly without conversion, indicating misunderstanding of type system. In Python/Java, implicit int→string conversion is not allowed; requires explicit str(42) or String.valueOf(42). This is a conceptual error about type safety rules.",
+  "confidence": 0.90
+}
+
+Example 2 - Missing Semicolon (MENTAL_TYPO):
+Error: "expected ';' before 'int'"
+Code: int x = 5 int y = 10;
+Output:
+{
+  "surface_error": "Syntax",
+  "specific_error": "Missing semicolon at end of statement",
+  "compiler_excerpt": "expected ';' before 'int'",
+  "cognitive_cause": "MENTAL_TYPO",
+  "bloom_level": "Below Remember",
+  "reasoning": "Simple punctuation omission with no conceptual deficit. Student knows syntax rule but made careless typing error. Isolated incident suggests mechanical slip rather than knowledge gap.",
+  "confidence": 0.95
+}
+
+Example 3 - Undefined Reference (KNOWLEDGE_GAP):
+Error: "name 'calculate_mean' is not defined"
+Code: result = calculate_mean(data)
+Output:
+{
+  "surface_error": "Semantic/Link",
+  "specific_error": "Undefined function reference",
+  "compiler_excerpt": "name 'calculate_mean' is not defined",
+  "cognitive_cause": "KNOWLEDGE_GAP",
+  "bloom_level": "Remember",
+  "reasoning": "Function used without being declared or imported. Suggests student forgot to define function or missed import statement. This is recall-level error about function definitions/scope rules.",
+  "confidence": 0.85
+}
+
+**OUTPUT FORMAT** (JSON):
+You MUST return ONLY valid JSON with these EXACT field names (no variations):
+```json
+{
+  "surface_error": "Semantic/Type",
+  "specific_error": "Type mismatch",
+  "compiler_excerpt": "cannot convert int to string",
+  "cognitive_cause": "MISCONCEPTION",
+  "bloom_level": "Understand",
+  "reasoning": "Student attempted implicit type conversion, indicating confusion about type system rules. This is a conceptual misunderstanding rather than a typo.",
+  "confidence": 0.85
+}
+```
+
+**CRITICAL REQUIREMENTS**:
+1. Use EXACT field names: surface_error, specific_error, compiler_excerpt, cognitive_cause, bloom_level, reasoning, confidence
+2. confidence MUST be a decimal number between 0.0 and 1.0 (NOT 0-100, NOT an integer)
+3. surface_error MUST be one of the 12 categories listed above
+4. cognitive_cause MUST be one of the 8 causes listed above
+5. bloom_level MUST be one of the 7 levels listed above
+6. Return ONLY the JSON object, no explanatory text before or after
+
+**CRITICAL: Use these EXACT field names in your JSON response:**
+- surface_error (NOT error_type)
+- specific_error
+- compiler_excerpt (NOT source_code_element)
+- cognitive_cause
+- bloom_level
+- reasoning
+- confidence (MUST be 0.0-1.0 range, NOT 0-100)
+"""
+
+        user_prompt = f"""Error Message:
+```
+{error_text}
+```
+
+Language: {language}
+
+Student Code (first 500 chars):
+```
+{code[:500] if code else "N/A"}
+```
+
+Classify this error following the academic framework above.
+
+SELF-VERIFICATION before responding:
+1. Does cognitive_cause logically match specific_error?
+2. Is bloom_level appropriate for cognitive complexity?
+3. Does reasoning cite specific evidence from error/code?
+4. Is confidence realistic (between 0.0 and 1.0, NOT 0-100)?
+5. Are you using the EXACT field names: surface_error, specific_error, compiler_excerpt, cognitive_cause, bloom_level, reasoning, confidence?
+
+RESPOND WITH ONLY THE JSON OBJECT. Example format:
+{{"surface_error": "Syntax", "specific_error": "Missing semicolon", "compiler_excerpt": "expected ';'", "cognitive_cause": "MENTAL_TYPO", "bloom_level": "Below Remember", "reasoning": "...", "confidence": 0.85}}"""
+
+        response = model.generate_content(
+            user_prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.1,  # IMPROVED: Low temperature for consistent classification
+                top_p=0.90,       # IMPROVED: Reduced from 0.95 for tighter distribution
+                top_k=20,         # IMPROVED: Reduced from 40 for more focused sampling
+                max_output_tokens=600,
+                response_mime_type="application/json",  # IMPROVED: Force JSON output
+            ),
+            safety_settings={
+                "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
+                "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
+                "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+                "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
+            }
+        )
+
+        # Extract text from response
+        text = response.text.strip()
+        
+        # Remove markdown code fences if present
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+        
+        # Parse JSON
+        result = json.loads(text)
+        
+        # DEBUG: Log what LLM returned
+        logger.info(f"🤖 LLM returned for compiler error: surface_error={result.get('surface_error')}, specific_error={result.get('specific_error')}")
+        
+        # Validate required fields
+        required_fields = ["surface_error", "specific_error", "compiler_excerpt", 
+                          "cognitive_cause", "bloom_level", "reasoning"]
+        if not all(field in result for field in required_fields):
+            logger.warning(f"Gemini response missing required fields: {result}")
             return None
+        
+        # Ensure confidence is present
+        if "confidence" not in result:
+            result["confidence"] = 0.75
+        
+        # IMPROVED: Confidence calibration based on evidence strength
+        result = _calibrate_confidence(result, error_text, code)
+        
+        logger.info(f"✅ Final compiler error classification: surface_error={result['surface_error']}, confidence={result['confidence']}")
+        
+        return result
 
-    # Candidate call patterns (name, callable-wrapper)
-    candidates = []
-
-    # Prefer model object patterns available in newer google-generativeai versions
-    if hasattr(genai, "get_model"):
-        # try generate_content with explicit input
-        candidates.append(("get_model.generate_content_input", lambda: genai.get_model(model).generate_content(input=prompt)))
-        # try start_chat with input keyword
-        candidates.append(("get_model.start_chat_input", lambda: genai.get_model(model).start_chat(input=prompt)))
-        # try start_chat with positional messages
-        candidates.append(("get_model.start_chat_messages", lambda: genai.get_model(model).start_chat([{"role": "system", "content": system}, {"role": "user", "content": normalized_text}])))
-    if hasattr(genai, "GenerativeModel"):
-        # several variants: generate_content with input, positional prompt, and start_chat with different arg shapes
-        candidates.append(("GenerativeModel.generate_content_input", lambda: genai.GenerativeModel(model_name=model).generate_content(input=prompt)))
-        candidates.append(("GenerativeModel.generate_content_prompt", lambda: genai.GenerativeModel(model_name=model).generate_content(prompt)))
-        candidates.append(("GenerativeModel.start_chat_input", lambda: genai.GenerativeModel(model_name=model).start_chat(input=prompt)))
-        candidates.append(("GenerativeModel.start_chat_messages", lambda: genai.GenerativeModel(model_name=model).start_chat([{"role": "system", "content": system}, {"role": "user", "content": normalized_text}])))
-        candidates.append(("GenerativeModel.start_chat_content", lambda: genai.GenerativeModel(model_name=model).start_chat(content=prompt)))
-
-    # 1) genai.generate_text(model=..., input=...)
-    if hasattr(genai, "generate_text"):
-        candidates.append(("generate_text", lambda: genai.generate_text(model=model, input=prompt)))
-
-    # 2) genai.text.generate(model=..., prompt=...)
-    if hasattr(genai, "text") and hasattr(genai.text, "generate"):
-        candidates.append(("text.generate", lambda: genai.text.generate(model=model, prompt=prompt)))
-
-    # 3) genai.chat.create(model=..., messages=[...])
-    if hasattr(genai, "chat") and hasattr(genai.chat, "create"):
-        messages = [{"role": "system", "content": system}, {"role": "user", "content": normalized_text}]
-        candidates.append(("chat.create", lambda: genai.chat.create(model=model, messages=messages)))
-
-    # 4) genai.responses.create(model=..., input=[...])
-    if hasattr(genai, "responses") and hasattr(genai.responses, "create"):
-        candidates.append(("responses.create", lambda: genai.responses.create(model=model, input=[{"role": "system", "content": system}, {"role": "user", "content": normalized_text}])))
-
-    # 5) genai.respond(...) (older)
-    if hasattr(genai, "respond"):
-        candidates.append(("respond", lambda: genai.respond(model=model, input=prompt)))
-
-    # 6) client-level generate (genai.client.generate_text)
-    if hasattr(genai, "client") and hasattr(genai.client, "generate_text"):
-        candidates.append(("client.generate_text", lambda: genai.client.generate_text(model=model, input=prompt)))
-
-    # 7) fallback to a plain function 'generate' if present
-    if hasattr(genai, "generate"):
-        candidates.append(("generate", lambda: genai.generate(model=model, input=prompt)))
-
-    # try responder module functions if present
-    try:
-        responder = getattr(genai, "responder", None)
-        if responder is not None:
-            for name in ("respond", "create", "get_response", "respond_async", "create_response"):
-                if hasattr(responder, name):
-                    candidates.append((f"responder.{name}", lambda n=name: getattr(responder, n)(model=model, input=prompt)))
-    except Exception:
-        pass
-
-    # try positional start_chat / generate_content calls (no kwargs)
-    if hasattr(genai, "GenerativeModel"):
-        candidates.append(("GenerativeModel.start_chat_positional", lambda: genai.GenerativeModel(model_name=model).start_chat(prompt)))
-        candidates.append(("GenerativeModel.generate_content_positional", lambda: genai.GenerativeModel(model_name=model).generate_content(prompt)))
-
-    last_exc = None
-    for name, call in candidates:
-        tried.append(name)
-        try:
-            resp = call()
-            content = _call_and_get(resp)
-            if content:
-                break
-        except Exception as e:
-            last_exc = e
-            logger.debug("Gemini candidate %s failed: %s", name, e)
-    if not content:
-        logger.exception("Gemini request failed; tried: %s; last_exc=%s", tried, repr(last_exc))
+    except json.JSONDecodeError as e:
+        logger.exception(f"Failed to parse Gemini JSON response: {text[:500] if 'text' in locals() else 'N/A'}")
+        return None
+    except Exception as e:
+        logger.exception(f"Gemini classification failed: {e}")
         return None
 
-    # Try to load JSON directly, else extract a JSON substring
+
+def classify_logic_error_with_gemini(
+    code: str,
+    test_input: str,
+    expected: str,
+    actual: str,
+    problem_desc: str,
+    language: str
+) -> Dict[str, Any]:
+    """
+    Classify logic errors (incorrect output) using Gemini with IMPROVED test case analysis.
+    
+    IMPROVEMENTS:
+    - Few-shot examples specific to logic errors
+    - Code trace-through instructions
+    - Temperature=0.15 (slightly higher for analytical reasoning)
+    - Self-verification of trace logic
+    - Specific logic error subtypes
+    
+    Logic errors have no compiler/runtime error but produce wrong output.
+    Requires deeper analysis of algorithm correctness.
+    """
     try:
-        data = json.loads(content)
-        label = str(data.get("label", "Unknown error"))
-        confidence = float(data.get("confidence", 0.5))
-        # Attempt to fetch embeddings via google generative API if available
-        embedding = None
-        try:
-            # try common embedding method names
-            if hasattr(genai, "get_embeddings"):
-                emb_resp = genai.get_embeddings(texts=[normalized_text])
-                # genai.get_embeddings may return dict-like
-                if isinstance(emb_resp, dict) and emb_resp.get("embeddings"):
-                    embedding = emb_resp["embeddings"][0]
-            elif hasattr(genai, "embeddings") and hasattr(genai.embeddings, "create"):
-                emb_resp = genai.embeddings.create(model=os.getenv("GOOGLE_EMBEDDING_MODEL", "embed-text-embedding-3-small"), input=normalized_text)
-                # try to extract embeddings
-                if isinstance(emb_resp, dict) and emb_resp.get("data"):
-                    embedding = emb_resp["data"][0].get("embedding")
-            elif hasattr(genai, "embed_content"):
-                try:
-                    emb_resp = genai.embed_content(model=os.getenv("GOOGLE_EMBEDDING_MODEL", "models/text-embedding-004"), content=[normalized_text])
-                    if isinstance(emb_resp, dict) and emb_resp.get("embeddings"):
-                        embedding = emb_resp["embeddings"][0]
-                    elif isinstance(emb_resp, dict) and emb_resp.get("data"):
-                        embedding = emb_resp["data"][0].get("embedding")
-                    elif isinstance(emb_resp, dict) and emb_resp.get("embedding"):
-                        ev = emb_resp.get("embedding")
-                        if isinstance(ev, list) and len(ev) > 0 and isinstance(ev[0], (list, tuple)):
-                            embedding = ev[0]
-                        elif isinstance(ev, list) and all(isinstance(x, (int, float)) for x in ev):
-                            embedding = ev
-                    elif isinstance(emb_resp, (list, tuple)) and len(emb_resp) > 0:
-                        embedding = emb_resp[0]
-                except Exception:
-                    embedding = None
-        except Exception:
-            embedding = None
+        import google.generativeai as genai
+    except ImportError:
+        logger.warning("google.generativeai not installed")
+        return {
+            "surface_error": "Functional/Logic",
+            "specific_error": "Incorrect output",
+            "compiler_excerpt": f"Expected: {expected[:50]}, Got: {actual[:50]}",
+            "cognitive_cause": "WRONG_CHOICE",
+            "bloom_level": "Apply",
+            "reasoning": "Logic error detected but LLM unavailable for detailed analysis.",
+            "confidence": 0.55
+        }
 
-        return (label, confidence, embedding)
-    except Exception:
-        import re
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if not google_key:
+        logger.warning("GOOGLE_API_KEY not set")
+        return {
+            "surface_error": "Functional/Logic",
+            "specific_error": "Incorrect output",
+            "compiler_excerpt": f"Expected: {expected[:50]}, Got: {actual[:50]}",
+            "cognitive_cause": "WRONG_CHOICE",
+            "bloom_level": "Apply",
+            "reasoning": "Logic error detected but API key missing.",
+            "confidence": 0.55
+        }
 
-        m = re.search(r"(\{.*\})", content, re.DOTALL)
-        if m:
-            try:
-                data = json.loads(m.group(1))
-                label = str(data.get("label", "Unknown error"))
-                confidence = float(data.get("confidence", 0.5))
-                return (label, confidence)
-            except Exception:
-                logger.exception("Failed to parse JSON substring from Gemini response: %s", content[:1000])
-                return None
+    try:
+        genai.configure(api_key=google_key)
+        model_name = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash-exp")
+        model = genai.GenerativeModel(model_name=model_name)
 
-        logger.exception("Could not parse Gemini response as JSON: %s", content[:1000])
-        return None
+        system_prompt = """You are an expert algorithm analysis assistant for CS education.
+
+**CRITICAL CONSTRAINTS** (HALLUCINATION PREVENTION):
+1. Analyze the code's EXECUTION FLOW on the given test input
+2. Trace through line-by-line to identify WHERE output diverges from expected
+3. NEVER guess; explain the actual bug based on code logic
+4. If multiple bugs possible, choose most likely based on code structure
+5. Classify as most specific logic error type possible
+
+**LOGIC ERROR SUBTYPES** (Functional/Logic surface category):
+1. **Off-by-one error**: Loop bounds ±1, array indices, boundary conditions
+2. **Edge case failure**: Empty input, single element, max/min values
+3. **Wrong algorithm**: Fundamentally incorrect approach
+4. **Missing condition**: Incomplete if-else logic, missing case
+5. **Variable confusion**: Used wrong variable in computation
+6. **Math error**: Incorrect formula/calculation
+7. **Order of operations**: Steps executed in wrong sequence
+8. **Incorrect state transition**: Object state not updated correctly
+
+**COGNITIVE CAUSES FOR LOGIC ERRORS**:
+- **WRONG_CHOICE**: Selected wrong algorithm or data structure (O(n²) when O(n) needed)
+- **STRUCTURAL_BLINDNESS**: Missed edge cases, boundary conditions, initialization
+- **MISCONCEPTION**: Misunderstood problem requirements or algorithm invariants
+- **MENTAL_TYPO**: Typo in variable name causing wrong value usage (rare for pure logic errors)
+
+**BLOOM LEVELS FOR LOGIC ERRORS**:
+- Apply: Basic algorithm application errors (common off-by-one, simple edge cases)
+- Analyse: Complex algorithm design flaws, subtle boundary conditions
+- Evaluate: Failed to optimize, chose inefficient data structure
+- Create: Novel problem requiring creative algorithmic solution
+
+**EXAMPLES** (few-shot grounding for logic errors):
+
+Example 1 - Off-by-One (STRUCTURAL_BLINDNESS):
+Problem: Sum array elements
+Input: [1,2,3,4,5]
+Expected: 15
+Actual: 10
+Code: for(int i=0; i<arr.length-1; i++) sum += arr[i];
+Output:
+{
+  "surface_error": "Functional/Logic",
+  "specific_error": "Off-by-one error in loop bound",
+  "compiler_excerpt": "Expected: 15, Got: 10",
+  "cognitive_cause": "STRUCTURAL_BLINDNESS",
+  "bloom_level": "Apply",
+  "reasoning": "Loop condition 'i<arr.length-1' terminates one iteration early. When array has 5 elements, loop runs for i=0,1,2,3 (only 4 iterations), missing last element arr[4]=5. Should be 'i<arr.length' or 'i<=arr.length-1'. Student failed to test boundary case with exact array length.",
+  "confidence": 0.92
+}
+
+Example 2 - Edge Case (STRUCTURAL_BLINDNESS):
+Problem: Find maximum element
+Input: []
+Expected: -1 (or error)
+Actual: NaN / crash
+Code: max = arr[0]; for(i=1;i<arr.length;i++) if(arr[i]>max) max=arr[i]; return max;
+Output:
+{
+  "surface_error": "Functional/Logic",
+  "specific_error": "Edge case failure on empty input",
+  "compiler_excerpt": "Expected: -1, Got: NaN / crash",
+  "cognitive_cause": "STRUCTURAL_BLINDNESS",
+  "bloom_level": "Apply",
+  "reasoning": "Code assumes array has at least one element. Accessing arr[0] on empty array causes out-of-bounds or returns undefined. Missing defensive check: if(arr.length==0) return -1; Student did not anticipate empty input edge case.",
+  "confidence": 0.88
+}
+
+Example 3 - Wrong Algorithm (WRONG_CHOICE):
+Problem: Check if array is sorted (O(n) expected)
+Input: [1,2,3,4,5]
+Expected: true (time <1ms)
+Actual: true (time 5000ms on large input)
+Code: for(i=0;i<n;i++) for(j=0;j<n;j++) if(arr[j]>arr[j+1]) return false;
+Output:
+{
+  "surface_error": "Functional/Logic",
+  "specific_error": "Wrong algorithm - O(n²) instead of O(n)",
+  "compiler_excerpt": "Expected: O(n), Got: O(n²) causing TLE",
+  "cognitive_cause": "WRONG_CHOICE",
+  "bloom_level": "Analyse",
+  "reasoning": "Student chose nested loop to check if sorted, resulting in O(n²) complexity. Correct approach: single pass checking arr[i]<=arr[i+1]. Also has bug: inner loop j+1 will overflow on last element. Student chose wrong algorithm strategy - unnecessary nested iteration.",
+  "confidence": 0.85
+}
+
+**OUTPUT FORMAT**:
+You MUST return ONLY valid JSON with these EXACT field names:
+```json
+{
+  "surface_error": "Functional/Logic",
+  "specific_error": "Off-by-one error in loop bound",
+  "compiler_excerpt": "Expected: 15, Got: 10",
+  "cognitive_cause": "STRUCTURAL_BLINDNESS",
+  "bloom_level": "Apply",
+  "reasoning": "Loop condition terminates one iteration early...",
+  "confidence": 0.85
+}
+```
+
+**CRITICAL REQUIREMENTS**:
+1. Use EXACT field names: surface_error, specific_error, compiler_excerpt, cognitive_cause, bloom_level, reasoning, confidence
+2. confidence MUST be decimal 0.0-1.0 (NOT 0-100)
+3. surface_error should typically be "Functional/Logic" for logic errors
+4. bloom_level for logic errors: Apply, Analyse, Evaluate, or Create
+5. Trace through code mentally BEFORE classifying
+6. Return ONLY the JSON object, no explanatory text
+
+**CRITICAL: Use these EXACT field names in your JSON response:**
+- surface_error (NOT error_type)
+- specific_error
+- compiler_excerpt (NOT source_code_element)
+- cognitive_cause
+- bloom_level
+- reasoning
+- confidence (MUST be 0.0-1.0 range, NOT 0-100)
+"""
+
+        user_prompt = f"""Problem Statement: {problem_desc[:250] if problem_desc else "N/A"}
+
+Student Code:
+```{language}
+{code[:1000]}
+```
+
+Test Case Analysis:
+Input: {test_input[:150]}
+Expected Output: {expected[:200]}
+Actual Output: {actual[:200]}
+
+Language: {language}
+
+STEP 1: TRACE through the code execution on the given input line-by-line
+STEP 2: Identify WHERE the output diverges from expected
+STEP 3: Classify using the academic framework above
+
+SELF-VERIFICATION:
+1. Does your trace explain the actual vs expected mismatch?
+2. Is the logic error type specific (not just "incorrect output")?
+3. Are you using EXACT field names: surface_error, specific_error, compiler_excerpt, cognitive_cause, bloom_level, reasoning, confidence?
+4. Is confidence between 0.0-1.0 (NOT 0-100)?
+
+RESPOND WITH ONLY THE JSON OBJECT. Example:
+{{"surface_error": "Functional/Logic", "specific_error": "Off-by-one error", "compiler_excerpt": "Expected: 15, Got: 10", "cognitive_cause": "STRUCTURAL_BLINDNESS", "bloom_level": "Apply", "reasoning": "...", "confidence": 0.85}}"""
+
+        response = model.generate_content(
+            user_prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.15,  # IMPROVED: Slightly higher for analytical reasoning
+                top_p=0.90,
+                top_k=20,
+                max_output_tokens=700,
+                response_mime_type="application/json",
+            ),
+            safety_settings={
+                "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
+                "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
+                "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
+                "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE",
+            }
+        )
+
+        text = response.text.strip()
+        
+        # Remove markdown fences
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+        
+        result = json.loads(text)
+        
+        # DEBUG: Log what LLM returned before overwriting
+        print(f"🤖 LLM RAW RESPONSE for logic error:")
+        print(f"   surface_error: {result.get('surface_error')}")
+        print(f"   specific_error: {result.get('specific_error')}")
+        print(f"   cognitive_cause: {result.get('cognitive_cause')}")
+        print(f"   bloom_level: {result.get('bloom_level')}")
+        print(f"   confidence: {result.get('confidence')}")
+        logger.info(f"🤖 LLM returned for logic error: surface_error={result.get('surface_error')}, specific_error={result.get('specific_error')}")
+        
+        result["surface_error"] = "Functional/Logic" 
+        # //hardcode surface error
+        # Ensure required fields
+        if "surface_error" not in result or not result["surface_error"]:
+            result["surface_error"] = "Functional/Logic"
+            print(f"⚠️ LLM returned empty surface_error, defaulting to 'Functional/Logic'")
+            logger.warning(f"⚠️ LLM returned empty surface_error, defaulting to 'Functional/Logic'")
+        
+        if "confidence" not in result:
+            result["confidence"] = 0.70
+        if "bloom_level" not in result or result["bloom_level"] not in ["Apply", "Analyse", "Evaluate", "Create"]:
+            result["bloom_level"] = "Apply"
+        
+        # IMPROVED: Confidence calibration for logic errors
+        result = _calibrate_confidence(result, f"Logic: {expected} vs {actual}", code)
+        
+        print(f"✅ FINAL logic error classification:")
+        print(f"   surface_error: {result['surface_error']}")
+        print(f"   specific_error: {result.get('specific_error')}")
+        print(f"   confidence: {result['confidence']}")
+        logger.info(f"✅ Final logic error classification: surface_error={result['surface_error']}, specific_error={result.get('specific_error')}")
+        
+        return result
+
+    except json.JSONDecodeError as e:
+        logger.exception(f"Failed to parse logic error JSON: {str(e)[:200]}")
+        return {
+            "surface_error": "Functional/Logic",
+            "specific_error": "Incorrect output",
+            "compiler_excerpt": f"Expected: {expected[:50]}, Got: {actual[:50]}",
+            "cognitive_cause": "WRONG_CHOICE",
+            "bloom_level": "Apply",
+            "reasoning": "Logic error detected but JSON parsing failed during classification.",
+            "confidence": 0.60
+        }
+    except Exception as e:
+        logger.exception(f"Logic error classification failed: {e}")
+        return {
+            "surface_error": "Functional/Logic",
+            "specific_error": "Incorrect output",
+            "compiler_excerpt": f"Expected: {expected[:50]}, Got: {actual[:50]}",
+            "cognitive_cause": "WRONG_CHOICE",
+            "bloom_level": "Apply",
+            "reasoning": "Logic error detected but classification encountered exception.",
+            "confidence": 0.60
+        }

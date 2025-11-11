@@ -11,10 +11,17 @@ const prismaAny = prisma as any;
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";
 
 interface AIClassifyResponse {
-  label: string;
-  confidence: number;
-  embedding?: number[] | null;
-  normalized_text: string;
+  // Academic framework fields (IEEE 1044-2009 + Zehetmeier et al. 2015)
+  surface_error: string;           // Lexical, Syntax, Semantic/Type, etc.
+  specific_error: string;          // Detailed error description
+  compiler_excerpt: string;        // Key part of error message
+  cognitive_cause: string;         // MENTAL_TYPO, KNOWLEDGE_GAP, MISCONCEPTION, etc.
+  bloom_level: string;             // Below Remember, Remember, Understand, Apply, Analyse, Evaluate, Create
+  reasoning: string;               // AI explanation of the error
+  confidence: number;              // 0.0-1.0
+  embedding?: number[] | null;     // 768-dim vector for clustering
+  normalized_text: string;         // Normalized error text
+  source: string;                  // "rule-based" | "llm" | "llm-logic-error"
 }
 
 /**
@@ -43,24 +50,77 @@ function hashError(text: string): string {
 /**
  * Call AI service to classify an error
  */
-export async function classifyWithAI(text: string, language: string | null): Promise<AIClassifyResponse> {
+export async function classifyWithAI(
+  text: string,
+  language: string | null,
+  extra?: {
+    code?: string | null;
+    test_case_input?: string | null;
+    expected_output?: string | null;
+    actual_output?: string | null;
+    problem_description?: string | null;
+  }
+): Promise<AIClassifyResponse> {
   try {
+    const payload: Record<string, any> = { text, language };
+    // Pass optional academic/logic context if provided
+    if (extra) {
+      Object.entries(extra).forEach(([k, v]) => {
+        if (v) payload[k] = v;
+      });
+      // Also pass raw code separately even if we built a combined text earlier
+      if (extra.code && !payload.code) payload.code = extra.code;
+    }
     const response = await axios.post<AIClassifyResponse>(
       `${AI_SERVICE_URL}/errors/classify`,
-      { text, language },
-      { timeout: 5000 }
+      payload,
+      { timeout: 7000 }
     );
+    console.log("🎯 AI Service Response:", JSON.stringify({
+      surface_error: response.data.surface_error,
+      specific_error: response.data.specific_error,
+      source: response.data.source,
+      confidence: response.data.confidence
+    }));
     return response.data;
   } catch (error: any) {
     console.error("AI classification failed:", error.message);
     // Fallback to generic classification
     return {
-      label: "Unknown error",
+      surface_error: "Unknown",
+      specific_error: "Unknown error",
+      compiler_excerpt: text.substring(0, 100),
+      cognitive_cause: "KNOWLEDGE_GAP",
+      bloom_level: "Remember",
+      reasoning: "Classification service unavailable",
       confidence: 0.3,
       embedding: null,
-      normalized_text: normalizeError(text)
+      normalized_text: normalizeError(text),
+      source: "rule-based"
     };
   }
+}
+
+/**
+ * Classify a pure logic error (wrong answer without compiler/runtime error).
+ * We supply test case context separately so the AI service can trigger logic classification path.
+ */
+export async function classifyLogicErrorWithAI(params: {
+  code: string;
+  language: string;
+  test_case_input: string;
+  expected_output: string;
+  actual_output: string;
+  problem_description?: string | null;
+}): Promise<AIClassifyResponse> {
+  const syntheticText = `Logic error: expected ${params.expected_output} got ${params.actual_output}`;
+  return classifyWithAI(syntheticText, params.language, {
+    code: params.code,
+    test_case_input: params.test_case_input,
+    expected_output: params.expected_output,
+    actual_output: params.actual_output,
+    problem_description: params.problem_description || null
+  });
 }
 
 /**
@@ -69,7 +129,7 @@ export async function classifyWithAI(text: string, language: string | null): Pro
 export async function upsertErrorSignature(
   text: string,
   language: string | null
-): Promise<{ id: string; label: string | null }> {
+): Promise<{ id: string; label: string | null; classification: AIClassifyResponse }> {
   const normalized = normalizeError(text);
   const hash = hashError(normalized);
 
@@ -80,17 +140,53 @@ export async function upsertErrorSignature(
   });
 
   if (existing) {
-    return existing;
+    // For existing signatures, we don't have the full classification stored
+    // Return a minimal response (frontend will use label only for legacy)
+    return {
+      ...existing,
+      classification: {
+        surface_error: "Unknown",
+        specific_error: existing.label || "Unknown",
+        compiler_excerpt: "",
+        cognitive_cause: "KNOWLEDGE_GAP",
+        bloom_level: "Remember",
+        reasoning: "",
+        confidence: 0.5,
+        embedding: null,
+        normalized_text: normalized,
+        source: "cached"
+      }
+    };
   }
 
   // Classify with AI service
   const classification = await classifyWithAI(normalized, language);
 
-  // Create new signature
+  // Create combined label for legacy database field
+  const combinedLabel = `${classification.surface_error}: ${classification.specific_error}`;
+
+  console.log("💾 Storing in database:", JSON.stringify({
+    surfaceError: classification.surface_error,
+    specificError: classification.specific_error,
+    cognitiveCause: classification.cognitive_cause,
+    bloomLevel: classification.bloom_level,
+    source: classification.source
+  }));
+
+  // Create new signature with full academic fields
   const signature = await prismaAny.errorSignature.create({
     data: {
       hash,
-      label: classification.label,
+      // Academic Framework Fields
+      surfaceError: classification.surface_error,
+      specificError: classification.specific_error,
+      compilerExcerpt: classification.compiler_excerpt,
+      cognitiveCause: classification.cognitive_cause,
+      bloomLevel: classification.bloom_level,
+      reasoning: classification.reasoning,
+      source: classification.source,
+      // Legacy fields (for backward compatibility)
+      label: combinedLabel,
       confidence: classification.confidence,
       sample: normalized,
       embedding: classification.embedding ? JSON.parse(JSON.stringify(classification.embedding)) : null
@@ -98,7 +194,9 @@ export async function upsertErrorSignature(
     select: { id: true, label: true }
   });
 
-  return signature;
+  console.log("✅ Stored signature with ID:", signature.id);
+
+  return { ...signature, classification };
 }
 
 /**
@@ -139,6 +237,78 @@ export async function recordSubmissionError(opts: {
 }
 
 /**
+ * Record a logic (wrong_answer) submission error when there is no compile/runtime stderr.
+ * Selects first failing test case context for classification.
+ */
+export async function recordLogicError(opts: {
+  submissionId: string;
+  language: string;
+  code: string;
+  failingInput: string;
+  expectedOutput: string;
+  actualOutput: string;
+  problemDescription?: string | null;
+}): Promise<void> {
+  try {
+    const classification = await classifyLogicErrorWithAI({
+      code: opts.code,
+      language: opts.language,
+      test_case_input: opts.failingInput,
+      expected_output: opts.expectedOutput,
+      actual_output: opts.actualOutput,
+      problem_description: opts.problemDescription || null
+    });
+
+    // Hash based on a stable normalized representation (ignore code to cluster by error pattern)
+    const baseText = `LogicMismatch\nInput:${opts.failingInput}\nExpected:${opts.expectedOutput}\nActual:${opts.actualOutput}`;
+    const normalized = normalizeError(baseText);
+    const hash = hashError(normalized);
+
+    // Upsert signature manually (since upsertErrorSignature currently expects raw text)
+    const existing = await prismaAny.errorSignature.findUnique({ where: { hash }, select: { id: true, label: true } });
+    let signatureId: string;
+    const combinedLabel = `${classification.surface_error}: ${classification.specific_error}`;
+    
+    if (existing) {
+      signatureId = existing.id;
+    } else {
+      const created = await prismaAny.errorSignature.create({
+        data: {
+          hash,
+          // Academic Framework Fields
+          surfaceError: classification.surface_error,
+          specificError: classification.specific_error,
+          compilerExcerpt: classification.compiler_excerpt,
+          cognitiveCause: classification.cognitive_cause,
+          bloomLevel: classification.bloom_level,
+          reasoning: classification.reasoning,
+          source: classification.source,
+          // Legacy fields (for backward compatibility)
+          label: combinedLabel,
+          confidence: classification.confidence,
+          sample: normalized,
+          embedding: classification.embedding ? JSON.parse(JSON.stringify(classification.embedding)) : null
+        },
+        select: { id: true }
+      });
+      signatureId = created.id;
+    }
+
+    await prismaAny.submissionError.create({
+      data: {
+        submissionId: opts.submissionId,
+        language: opts.language,
+        compileOutput: null,
+        stderr: null,
+        signatureId
+      }
+    });
+  } catch (e) {
+    console.error("Failed to record logic error:", (e as any).message);
+  }
+}
+
+/**
  * Get top error labels for a student
  */
 export async function getStudentTopErrors(userId: string, limit: number = 10) {
@@ -173,7 +343,20 @@ export async function getStudentRecentErrors(userId: string, limit: number = 20)
     take: limit,
     include: {
       signature: {
-        select: { label: true, confidence: true, embedding: true }
+        select: {
+          // Legacy fields
+          label: true,
+          confidence: true,
+          embedding: true,
+          // New academic framework fields
+          surfaceError: true,
+          specificError: true,
+          compilerExcerpt: true,
+          cognitiveCause: true,
+          bloomLevel: true,
+          reasoning: true,
+          source: true
+        }
       },
       submission: {
         select: {

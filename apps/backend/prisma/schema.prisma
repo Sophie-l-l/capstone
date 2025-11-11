@@ -119,10 +119,21 @@ model SubmissionError {
 model ErrorSignature {
   id         String   @id @default(uuid())
   hash       String   @unique // SHA-256 of normalized error text
-  label      String? // LLM-assigned short label, e.g., "Missing semicolon"
+  
+  // Academic Framework Fields (IEEE 1044 + Zehetmeier)
+  surfaceError     String? // e.g., "Functional/Logic", "Syntax", "Semantic/Type"
+  specificError    String? // Detailed description
+  compilerExcerpt  String?  @db.Text // Specific code/error excerpt
+  cognitiveCause   String? // e.g., "STRUCTURAL_BLINDNESS", "MISCONCEPTION"
+  bloomLevel       String? // e.g., "Apply", "Understand", "Remember"
+  reasoning        String?  @db.Text // Full LLM explanation
+  source           String? // e.g., "llm", "llm-logic-error", "rules"
+  
+  // Legacy/Metadata (keep for backward compatibility)
+  label      String? // Combined format: "Surface: Specific"
   confidence Float?
   sample     String?  @db.Text // First example error text
-  embedding  Json? // Store vector as JSON array
+  embedding  Json? // Store vector as JSON array (768-dim)
   clusterId  String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -131,6 +142,9 @@ model ErrorSignature {
   occurrences  SubmissionError[]
 
   @@index([hash])
+  @@index([surfaceError])
+  @@index([cognitiveCause])
+  @@index([bloomLevel])
   @@map("error_signatures")
 }
 

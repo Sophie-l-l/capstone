@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 const { authenticateToken } = require("../middleware/auth");
 import { runCode } from "../services/judge0.service";
-import { recordSubmissionError } from "../services/errorClassifier.service";
+import { recordSubmissionError, recordLogicError } from "../services/errorClassifier.service";
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -194,9 +194,9 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
       }
     });
 
-    // Record error if compilation or runtime error occurred
-    if (lastResult && (lastResult.compile_output || lastResult.stderr)) {
-      try {
+    // Record error: compiler/runtime or logic (wrong_answer)
+    try {
+      if (lastResult && (lastResult.compile_output || lastResult.stderr)) {
         await recordSubmissionError({
           submissionId: submission.id,
           language,
@@ -204,10 +204,42 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
           stderr: lastResult.stderr,
           code // include the submitted code so the AI can analyze it together with the error
         });
-      } catch (e) {
-        console.error('Error recording submission error:', e);
-        // Don't fail the submission if error recording fails
+      } else if (status === "wrong_answer") {
+        // Re-run to identify the first failing test case to provide precise logic error context
+        const langId = languageIds[language] as number;
+        let failingInput = "";
+        let expectedOutput = "";
+        let actualOutput = "";
+        try {
+          for (const tc of problem.testCases as any[]) {
+            const r = await runCode(code, langId, tc.input);
+            const passed = r.stdout?.trim() === tc.output.trim();
+            if (!passed) {
+              failingInput = tc.input;
+              expectedOutput = tc.output;
+              actualOutput = (r.stdout || "").toString();
+              break;
+            }
+          }
+        } catch (e) {
+          // best effort; fall back to lastResult
+          failingInput = "";
+          expectedOutput = "";
+          actualOutput = lastResult?.stdout || "";
+        }
+        await recordLogicError({
+          submissionId: submission.id,
+          language,
+          code,
+          failingInput,
+          expectedOutput,
+          actualOutput,
+          problemDescription: problem.description
+        });
       }
+    } catch (e) {
+      console.error('Error recording submission error:', e);
+      // Don't fail the submission if error recording fails
     }
 
       // Update BKT states for knowledge components associated with this problem
