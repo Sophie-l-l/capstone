@@ -233,6 +233,10 @@ class ApiClient {
     return this.request(`/api/submissions${query ? `?${query}` : ''}`)
   }
 
+  async getSubmissionDetail(submissionId: string) {
+    return this.request(`/api/students/submissions/${submissionId}/detail`)
+  }
+
   // Analytics endpoints
   async getUserStats() {
     if (shouldUseMock('analytics')) {

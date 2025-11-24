@@ -59,12 +59,6 @@ class ClassifyResponse(BaseModel):
     embedding: Optional[list[float]] = None
     normalized_text: str
     source: str = "rule-based"  # "rule-based", "llm", or "llm-logic-error"
-    
-    # Legacy compatibility (for backward compatibility with old API)
-    @property
-    def label(self) -> str:
-        """Legacy label field for backward compatibility."""
-        return f"{self.surface_error}: {self.specific_error}"
 
 
 def normalize_error(text: str) -> str:

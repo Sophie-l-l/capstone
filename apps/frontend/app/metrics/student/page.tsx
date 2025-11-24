@@ -86,10 +86,10 @@ type StudentResponse = {
 }
 
 type ErrorAnalytics = {
-  topErrors: { label: string; count: number }[]
+  topErrors: { label: string; count: number }[]  // label is constructed by backend API
   recentErrors: {
     id: string
-    label: string
+    submissionId: string
     // Academic framework fields (from database)
     surface_error?: string          // Lexical, Syntax, Semantic/Type, etc.
     specific_error?: string         // Detailed error description
@@ -809,11 +809,11 @@ export default function StudentDashboardPage() {
                   {errorData.recentErrors.map((error: ErrorAnalytics['recentErrors'][number]) => {
                     const preview = error.embeddingPreview ?? (Array.isArray(error.embedding) ? (error.embedding as number[]).slice(0, 8) : null)
                     return (
-                      <div key={error.id} className="border rounded-lg p-4 space-y-2">
+                      <a href={`/metrics/submission/${error.submissionId}`} key={error.id} className="block border rounded-lg p-4 space-y-2 hover:bg-muted/40 transition-colors">
                         <div className="flex items-start justify-between">
                           <div className="space-y-1 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-destructive">{error.surface_error || error.label}</span>
+                              <span className="font-semibold text-destructive">{error.surface_error || "Unknown"}</span>
                               {error.specific_error && (
                                 <span className="text-sm text-muted-foreground">→ {error.specific_error}</span>
                               )}
@@ -869,7 +869,7 @@ export default function StudentDashboardPage() {
                             <div className="mt-1 font-mono text-[11px] bg-slate-50 p-2 rounded overflow-x-auto">[{preview.map((v) => (v as number).toFixed(4)).join(', ')}{error.embeddingLength && error.embeddingLength > preview.length ? ', ...' : ''}]</div>
                           </div>
                         )}
-                      </div>
+                      </a>
                     )
                   })}
                 </div>

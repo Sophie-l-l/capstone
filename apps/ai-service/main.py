@@ -235,7 +235,7 @@ def classify_error_legacy(req: LegacyClassifyRequest):
     """
     result = classify_error(ClassifyRequest(text=req.error_message, language=req.language))
     return LegacyClassifyResponse(
-        label=result.label,  # Uses @property that combines surface + specific
+        label=f"{result.surface_error}: {result.specific_error}",
         confidence=result.confidence,
         embedding=result.embedding,
         source=result.source,

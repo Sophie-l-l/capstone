@@ -1,0 +1,45 @@
+# Production Dockerfile for Cloud Run
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+RUN apk add --no-cache python3 make g++ bash
+
+# Copy package files first for better caching
+COPY apps/backend/package.json apps/backend/tsconfig.json ./apps/backend/
+COPY apps/backend/prisma ./apps/backend/prisma
+
+# Install ALL dependencies (including devDependencies for build)
+RUN cd apps/backend && npm install
+
+# Copy source code
+COPY apps/backend ./apps/backend
+
+# Generate Prisma client and build TypeScript
+RUN cd apps/backend && npx prisma generate && npm run build
+
+# Production stage
+FROM node:20-alpine AS runner
+WORKDIR /app/apps/backend
+
+ENV NODE_ENV=production
+
+# Install production dependencies only
+COPY --from=builder /app/apps/backend/package.json ./
+RUN npm install --omit=dev
+
+# Copy built artifacts and prisma schema
+COPY --from=builder /app/apps/backend/dist ./dist
+COPY --from=builder /app/apps/backend/prisma ./prisma
+COPY --from=builder /app/apps/backend/node_modules/.prisma ./node_modules/.prisma
+
+# Cloud Run expects PORT environment variable
+ENV PORT=8080
+EXPOSE 8080
+
+# Health check for Cloud Run
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/health', (r) => {if(r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Run migrations (Cloud Run will use Cloud SQL Unix socket) and start server
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]

@@ -1,0 +1,14 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'apps/ai-service/Dockerfile.production'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/educode-ai:latest'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/educode-ai:$BUILD_ID'
+      - '.'
+images:
+  - 'gcr.io/$PROJECT_ID/educode-ai:latest'
+  - 'gcr.io/$PROJECT_ID/educode-ai:$BUILD_ID'

@@ -27,14 +27,8 @@ router.get("/:id/errors", async (req: Request, res: Response) => {
       recentErrors: recentErrors.map((err: any) => {
         const sig = err.signature;
         
-        // Construct label from academic fields (surface_error: specific_error)
-        const surfaceError = sig?.surfaceError || "Unknown";
-        const specificError = sig?.specificError || "Unknown error";
-        const label = `${surfaceError}: ${specificError}`;
-        
         return {
           id: err.id,
-          label, // Constructed from academic fields for backward compatibility
           // Full academic fields from database (new schema)
           surface_error: sig?.surfaceError || null,
           specific_error: sig?.specificError || null,

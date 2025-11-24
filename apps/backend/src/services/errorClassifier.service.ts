@@ -140,30 +140,26 @@ export async function upsertErrorSignature(
   });
 
   if (existing) {
-    // For existing signatures, we don't have the full classification stored
-    // Return a minimal response (frontend will use label only for legacy)
+    // For existing signatures, return academic fields if available, fallback to Unknown
     return {
       ...existing,
       classification: {
-        surface_error: "Unknown",
-        specific_error: existing.label || "Unknown",
-        compiler_excerpt: "",
-        cognitive_cause: "KNOWLEDGE_GAP",
-        bloom_level: "Remember",
-        reasoning: "",
-        confidence: 0.5,
+        surface_error: existing.surfaceError || "Unknown",
+        specific_error: existing.specificError || "Unknown error",
+        compiler_excerpt: existing.compilerExcerpt || "",
+        cognitive_cause: existing.cognitiveCause || "KNOWLEDGE_GAP",
+        bloom_level: existing.bloomLevel || "Remember",
+        reasoning: existing.reasoning || "",
+        confidence: existing.confidence || 0.5,
         embedding: null,
         normalized_text: normalized,
-        source: "cached"
+        source: existing.source || "cached"
       }
     };
   }
 
   // Classify with AI service
   const classification = await classifyWithAI(normalized, language);
-
-  // Create combined label for legacy database field
-  const combinedLabel = `${classification.surface_error}: ${classification.specific_error}`;
 
   console.log("💾 Storing in database:", JSON.stringify({
     surfaceError: classification.surface_error,
@@ -185,13 +181,12 @@ export async function upsertErrorSignature(
       bloomLevel: classification.bloom_level,
       reasoning: classification.reasoning,
       source: classification.source,
-      // Legacy fields (for backward compatibility)
-      label: combinedLabel,
+      // Metadata fields
       confidence: classification.confidence,
       sample: normalized,
       embedding: classification.embedding ? JSON.parse(JSON.stringify(classification.embedding)) : null
     },
-    select: { id: true, label: true }
+    select: { id: true }
   });
 
   console.log("✅ Stored signature with ID:", signature.id);
@@ -314,13 +309,17 @@ export async function recordLogicError(opts: {
 export async function getStudentTopErrors(userId: string, limit: number = 10) {
   const result = await prisma.$queryRaw<Array<{ label: string; count: bigint }>>`
     SELECT 
-      COALESCE(es.label, 'Unknown') as label,
+      CONCAT(
+        COALESCE(es."surfaceError", 'Unknown'),
+        ': ',
+        COALESCE(es."specificError", 'Unknown error')
+      ) as label,
       COUNT(*) as count
     FROM "submission_errors" se
     JOIN "submissions" s ON s.id = se."submissionId"
     LEFT JOIN "error_signatures" es ON es.id = se."signatureId"
     WHERE s."userId" = ${userId}
-    GROUP BY es.label
+    GROUP BY es."surfaceError", es."specificError"
     ORDER BY count DESC
     LIMIT ${limit}
   `;
@@ -344,11 +343,10 @@ export async function getStudentRecentErrors(userId: string, limit: number = 20)
     include: {
       signature: {
         select: {
-          // Legacy fields
-          label: true,
+          // Metadata fields
           confidence: true,
           embedding: true,
-          // New academic framework fields
+          // Academic framework fields
           surfaceError: true,
           specificError: true,
           compilerExcerpt: true,

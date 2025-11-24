@@ -100,3 +100,4 @@ temp/
 *.tgz
 *.tar.gz
 .cache
+.env.cloud-sql

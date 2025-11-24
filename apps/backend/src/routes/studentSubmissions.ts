@@ -60,4 +60,71 @@ router.get("/:id/submissions", async (req: Request, res: Response) => {
   }
 });
 
+// GET /submissions/:submissionId/detail
+// Returns submission, problem, student's submitted code, and error details (compile/stderr + academic fields)
+router.get("/submissions/:submissionId/detail", async (req: Request, res: Response) => {
+  try {
+    const { submissionId } = req.params
+    if (!submissionId) return res.status(400).json({ message: "submissionId required" })
+
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        problem: true,
+        error: { include: { signature: true } }
+      }
+    })
+
+    if (!submission) return res.status(404).json({ message: "Submission not found" })
+
+    // Shape response for frontend consumption
+  const sig: any = submission.error?.signature as any
+  const payload = {
+      id: submission.id,
+      problem: submission.problem ? {
+        id: submission.problem.id,
+        title: submission.problem.title,
+        difficulty: submission.problem.difficulty,
+        description: submission.problem.description,
+        inputFormat: submission.problem.inputFormat,
+        outputFormat: submission.problem.outputFormat,
+        constraints: submission.problem.constraints,
+        topics: submission.problem.topics,
+        knowledgeComponents: submission.problem.knowledgeComponents,
+        timeLimit: submission.problem.timeLimit,
+        memoryLimit: submission.problem.memoryLimit,
+      } : null,
+      code: submission.code,
+      language: submission.language,
+      status: submission.status,
+      testCasesPassed: submission.testCasesPassed,
+      totalTestCases: submission.totalTestCases,
+      runtime: submission.runtime,
+      memory: submission.memory,
+      submittedAt: submission.submittedAt,
+      error: submission.error ? {
+        compileOutput: submission.error.compileOutput,
+        stderr: submission.error.stderr,
+        createdAt: submission.error.createdAt,
+        language: submission.error.language,
+        classification: sig ? {
+          surface_error: sig.surfaceError ?? null,
+          specific_error: sig.specificError ?? null,
+          compiler_excerpt: sig.compilerExcerpt ?? null,
+          cognitive_cause: sig.cognitiveCause ?? null,
+          bloom_level: sig.bloomLevel ?? null,
+          reasoning: sig.reasoning ?? null,
+          source: sig.source ?? null,
+          confidence: sig.confidence ?? null,
+        } : null
+      } : null
+    }
+
+    return res.json(payload)
+  } catch (error) {
+    console.error("Get submission detail error:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
 module.exports = router;

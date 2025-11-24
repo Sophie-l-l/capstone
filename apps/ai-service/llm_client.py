@@ -130,8 +130,7 @@ def classify_with_gemini(error_text: str, language: str, code: str = "") -> Opti
     try:
         genai.configure(api_key=google_key)
         model_name = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash-exp")
-        model = genai.GenerativeModel(model_name=model_name)
-
+        
         # Enhanced prompt with academic framework + HALLUCINATION PREVENTION
         system_prompt = """You are an expert error classification assistant for CS education.
 
@@ -258,6 +257,12 @@ You MUST return ONLY valid JSON with these EXACT field names (no variations):
 - reasoning
 - confidence (MUST be 0.0-1.0 range, NOT 0-100)
 """
+
+        # Create model with system instruction
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            system_instruction=system_prompt
+        )
 
         user_prompt = f"""Error Message:
 ```
@@ -395,8 +400,7 @@ def classify_logic_error_with_gemini(
     try:
         genai.configure(api_key=google_key)
         model_name = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash-exp")
-        model = genai.GenerativeModel(model_name=model_name)
-
+        
         system_prompt = """You are an expert algorithm analysis assistant for CS education.
 
 **CRITICAL CONSTRAINTS** (HALLUCINATION PREVENTION):
@@ -512,6 +516,12 @@ You MUST return ONLY valid JSON with these EXACT field names:
 - reasoning
 - confidence (MUST be 0.0-1.0 range, NOT 0-100)
 """
+
+        # Create model with system instruction
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            system_instruction=system_prompt
+        )
 
         user_prompt = f"""Problem Statement: {problem_desc[:250] if problem_desc else "N/A"}
 
