@@ -1,0 +1,5 @@
+# Ignore all JSONL data files
+*.jsonl
+
+# But keep the README
+!README.md
