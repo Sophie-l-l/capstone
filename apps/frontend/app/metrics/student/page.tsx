@@ -397,17 +397,48 @@ export default function StudentDashboardPage() {
               <CardContent className="h-64">
                 {accuracyByLanguage.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No data</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={accuracyByLanguage} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="language" />
-                      <YAxis domain={[0, 1]} tickFormatter={(v) => `${Math.round((v as number) * 100)}%`} />
-                      <Tooltip formatter={(v: any) => `${Math.round((v as number) * 100)}%`} />
-                      <Bar dataKey="accuracy" fill="#3B82F6" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+                ) : (() => {
+                  // Calculate submission counts per language
+                  const langCounts: Record<string, number> = {}
+                  data?.errorDistribution.forEach(() => {
+                    // This is a simplified version - ideally get from backend
+                  })
+                  
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={accuracyByLanguage} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorLanguage" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                        <XAxis 
+                          dataKey="language" 
+                          tick={{ fontSize: 12, fill: '#6B7280' }}
+                          tickLine={{ stroke: '#E5E7EB' }}
+                        />
+                        <YAxis 
+                          domain={[0, 1]} 
+                          tickFormatter={(v) => `${Math.round((v as number) * 100)}%`}
+                          tick={{ fontSize: 12, fill: '#6B7280' }}
+                          tickLine={{ stroke: '#E5E7EB' }}
+                        />
+                        <Tooltip 
+                          formatter={(v: any) => [`${Math.round((v as number) * 100)}%`, 'Accuracy']}
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
+                        />
+                        <Bar 
+                          dataKey="accuracy" 
+                          fill="url(#colorLanguage)" 
+                          radius={[8, 8, 0, 0]}
+                          label={{ position: 'top', fontSize: 11, fill: '#3B82F6' }}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )
+                })()}
               </CardContent>
             </Card>
 
@@ -420,12 +451,35 @@ export default function StudentDashboardPage() {
                   <p className="text-sm text-muted-foreground">No data</p>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={accuracyByTopic} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="topic" />
-                      <YAxis domain={[0, 1]} tickFormatter={(v) => `${Math.round((v as number) * 100)}%`} />
-                      <Tooltip formatter={(v: any) => `${Math.round((v as number) * 100)}%`} />
-                      <Bar dataKey="accuracy" fill="#8B5CF6" />
+                    <BarChart data={accuracyByTopic} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorTopic" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.3}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <XAxis 
+                        dataKey="topic" 
+                        tick={{ fontSize: 12, fill: '#6B7280' }}
+                        tickLine={{ stroke: '#E5E7EB' }}
+                      />
+                      <YAxis 
+                        domain={[0, 1]} 
+                        tickFormatter={(v) => `${Math.round((v as number) * 100)}%`}
+                        tick={{ fontSize: 12, fill: '#6B7280' }}
+                        tickLine={{ stroke: '#E5E7EB' }}
+                      />
+                      <Tooltip 
+                        formatter={(v: any) => [`${Math.round((v as number) * 100)}%`, 'Accuracy']}
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
+                      />
+                      <Bar 
+                        dataKey="accuracy" 
+                        fill="url(#colorTopic)" 
+                        radius={[8, 8, 0, 0]}
+                        label={{ position: 'top', fontSize: 11, fill: '#8B5CF6' }}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -441,19 +495,38 @@ export default function StudentDashboardPage() {
               <CardContent className="h-64 flex items-center justify-center">
                 {errorDistribution.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No data</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie data={errorDistribution} dataKey="count" nameKey="status" outerRadius={80} fill="#8884d8">
-                        {errorDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
+                ) : (() => {
+                  const totalSubmissions = errorDistribution.reduce((sum, entry) => sum + entry.count, 0)
+                  const pieColors = ["#10B981", "#F59E0B", "#EF4444", "#3B82F6", "#8B5CF6", "#EC4899"]
+                  
+                  return (
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie 
+                          data={errorDistribution} 
+                          dataKey="count" 
+                          nameKey="status" 
+                          outerRadius={80} 
+                          label={(entry: any) => `${entry.count} (${((entry.count / totalSubmissions) * 100).toFixed(1)}%)`}
+                          labelLine={true}
+                        >
+                          {errorDistribution.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: any) => [`${value} (${((value / totalSubmissions) * 100).toFixed(1)}%)`, 'Count']}
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
+                        />
+                        <Legend 
+                          verticalAlign="bottom" 
+                          height={36}
+                          formatter={(value, entry: any) => `${value}: ${entry.payload.count}`}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )
+                })()}
               </CardContent>
             </Card>
 
@@ -466,23 +539,45 @@ export default function StudentDashboardPage() {
                   <p className="text-sm text-muted-foreground">Loading error analytics...</p>
                 ) : !errorData || errorData.topErrors.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No errors recorded yet</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={errorData.topErrors} margin={{ top: 10, right: 20, left: 0, bottom: 60 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="label" 
-                        angle={-45} 
-                        textAnchor="end" 
-                        height={80}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#EF4444" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+                ) : (() => {
+                  const totalErrors = errorData.topErrors.reduce((sum, item) => sum + item.count, 0)
+                  
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={errorData.topErrors} margin={{ top: 20, right: 20, left: 0, bottom: 60 }}>
+                        <defs>
+                          <linearGradient id="colorError" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#EF4444" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#EF4444" stopOpacity={0.3}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                        <XAxis 
+                          dataKey="label" 
+                          angle={-45} 
+                          textAnchor="end" 
+                          height={80}
+                          tick={{ fontSize: 11, fill: '#6B7280' }}
+                          tickLine={{ stroke: '#E5E7EB' }}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 12, fill: '#6B7280' }}
+                          tickLine={{ stroke: '#E5E7EB' }}
+                        />
+                        <Tooltip 
+                          formatter={(value: any) => [`${value} (${((value / totalErrors) * 100).toFixed(1)}%)`, 'Count']}
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
+                        />
+                        <Bar 
+                          dataKey="count" 
+                          fill="url(#colorError)" 
+                          radius={[8, 8, 0, 0]}
+                          label={{ position: 'top', fontSize: 10, fill: '#EF4444' }}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )
+                })()}
               </CardContent>
             </Card>
           </div>
@@ -512,18 +607,36 @@ export default function StudentDashboardPage() {
                   
                   return (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={surfaceData} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
+                      <BarChart data={surfaceData} margin={{ top: 20, right: 10, left: 0, bottom: 60 }}>
+                        <defs>
+                          <linearGradient id="colorSurface" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#10B981" stopOpacity={0.3}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                         <XAxis 
                           dataKey="name" 
                           angle={-45} 
                           textAnchor="end" 
                           height={80}
-                          tick={{ fontSize: 11 }}
+                          tick={{ fontSize: 10, fill: '#6B7280' }}
+                          tickLine={{ stroke: '#E5E7EB' }}
                         />
-                        <YAxis />
-                        <Tooltip formatter={(value: any) => [`${value} (${((value / totalSurfaceErrors) * 100).toFixed(1)}%)`, 'Count']} />
-                        <Bar dataKey="count" fill="#10B981" label={{ position: 'top', fontSize: 11 }} />
+                        <YAxis 
+                          tick={{ fontSize: 12, fill: '#6B7280' }}
+                          tickLine={{ stroke: '#E5E7EB' }}
+                        />
+                        <Tooltip 
+                          formatter={(value: any) => [`${value} (${((value / totalSurfaceErrors) * 100).toFixed(1)}%)`, 'Count']} 
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
+                        />
+                        <Bar 
+                          dataKey="count" 
+                          fill="url(#colorSurface)" 
+                          radius={[6, 6, 0, 0]}
+                          label={{ position: 'top', fontSize: 10, fill: '#10B981' }} 
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   )
@@ -560,15 +673,26 @@ export default function StudentDashboardPage() {
                           data={cognitiveData} 
                           dataKey="count" 
                           nameKey="name" 
-                          outerRadius={80} 
-                          label={(entry: any) => `${entry.name}: ${entry.count} (${((entry.count / totalCognitive) * 100).toFixed(1)}%)`}
+                          outerRadius={80}
+                          innerRadius={40}
+                          paddingAngle={2}
+                          label={(entry: any) => `${entry.count}`}
+                          labelLine={false}
                         >
                           {cognitiveData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={cognitiveColors[index % cognitiveColors.length]} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value: any) => [`${value} (${((value / totalCognitive) * 100).toFixed(1)}%)`, 'Count']} />
-                        <Legend />
+                        <Tooltip 
+                          formatter={(value: any) => [`${value} (${((value / totalCognitive) * 100).toFixed(1)}%)`, 'Count']} 
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
+                        />
+                        <Legend 
+                          verticalAlign="bottom" 
+                          height={36}
+                          formatter={(value) => value.replace(/_/g, ' ')}
+                          wrapperStyle={{ fontSize: '11px' }}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
                   )
@@ -602,18 +726,36 @@ export default function StudentDashboardPage() {
                   
                   return (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={bloomData} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
+                      <BarChart data={bloomData} margin={{ top: 20, right: 10, left: 0, bottom: 60 }}>
+                        <defs>
+                          <linearGradient id="colorBloom" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.3}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                         <XAxis 
                           dataKey="level" 
                           angle={-45} 
                           textAnchor="end" 
                           height={80}
-                          tick={{ fontSize: 11 }}
+                          tick={{ fontSize: 10, fill: '#6B7280' }}
+                          tickLine={{ stroke: '#E5E7EB' }}
                         />
-                        <YAxis />
-                        <Tooltip formatter={(value: any) => [`${value} (${((value / totalBloom) * 100).toFixed(1)}%)`, 'Count']} />
-                        <Bar dataKey="count" fill="#8B5CF6" label={{ position: 'top', fontSize: 11 }} />
+                        <YAxis 
+                          tick={{ fontSize: 12, fill: '#6B7280' }}
+                          tickLine={{ stroke: '#E5E7EB' }}
+                        />
+                        <Tooltip 
+                          formatter={(value: any) => [`${value} (${((value / totalBloom) * 100).toFixed(1)}%)`, 'Count']} 
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
+                        />
+                        <Bar 
+                          dataKey="count" 
+                          fill="url(#colorBloom)" 
+                          radius={[6, 6, 0, 0]}
+                          label={{ position: 'top', fontSize: 10, fill: '#8B5CF6' }} 
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   )
