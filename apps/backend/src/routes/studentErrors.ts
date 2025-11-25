@@ -11,6 +11,7 @@ router.get("/:id/errors", async (req: Request, res: Response) => {
   try {
     const { id: userId } = req.params;
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const recentLimit = Math.min(200, Math.max(1, parseInt(req.query.recentLimit as string) || 100));
 
     if (!userId) {
       return res.status(400).json({ message: "Student ID is required" });
@@ -19,7 +20,7 @@ router.get("/:id/errors", async (req: Request, res: Response) => {
     // Get top error types and recent errors in parallel
     const [topErrors, recentErrors] = await Promise.all([
       getStudentTopErrors(userId, limit),
-      getStudentRecentErrors(userId, 20)
+      getStudentRecentErrors(userId, recentLimit)
     ]);
 
     res.json({
