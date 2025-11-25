@@ -7,7 +7,13 @@ const app = express();
 
 // Middleware
 app.use(cors({ 
-  origin: ["http://localhost:3000", "http://localhost:3001"],
+  origin: [
+    "http://localhost:3000", 
+    "http://localhost:3001",
+    // Allow Vercel deployments
+    /\.vercel\.app$/,
+    // Add your custom domain if you have one
+  ],
   credentials: true 
 }));
 app.use(express.json({ limit: "10mb" }));
