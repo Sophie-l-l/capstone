@@ -1,12 +1,6 @@
 {
-  "version": 2,
-  "framework": "nextjs",
-  "env": {
-    "NEXT_PUBLIC_API_URL": "https://educode-backend-162585155042.us-central1.run.app",
-    "NEXT_PUBLIC_AI_SERVICE_URL": "https://educode-ai-162585155042.us-central1.run.app",
-    "NEXT_PUBLIC_USE_MOCK_DATA": "false",
-    "NEXT_PUBLIC_USE_MOCK_AUTH": "false",
-    "NEXT_PUBLIC_USE_MOCK_PROBLEMS": "false",
-    "NEXT_PUBLIC_USE_MOCK_ANALYTICS": "false"
-  }
+  "buildCommand": "pnpm run build",
+  "devCommand": "pnpm run dev",
+  "installCommand": "pnpm install",
+  "framework": "nextjs"
 }
