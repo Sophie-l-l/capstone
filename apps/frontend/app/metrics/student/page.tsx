@@ -133,6 +133,10 @@ export default function StudentDashboardPage() {
   const [showEmbeddingPreview, setShowEmbeddingPreview] = useState(false)
   const [clusterCount, setClusterCount] = useState(2)
   const [clusters, setClusters] = useState<Record<string, number>>({})
+  
+  // Pagination state for Recent Errors
+  const [errorPage, setErrorPage] = useState(1)
+  const errorsPerPage = 20
 
   // Submissions modal state
   const [submissionsOpen, setSubmissionsOpen] = useState(false)
@@ -570,6 +574,8 @@ export default function StudentDashboardPage() {
                     .map(([name, count]) => ({ name, count }))
                     .sort((a, b) => b.count - a.count)
                   
+                  const totalSurfaceErrors = surfaceData.reduce((sum, item) => sum + item.count, 0)
+                  
                   return (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={surfaceData} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
@@ -582,8 +588,8 @@ export default function StudentDashboardPage() {
                           tick={{ fontSize: 11 }}
                         />
                         <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="count" fill="#10B981" />
+                        <Tooltip formatter={(value: any) => [`${value} (${((value / totalSurfaceErrors) * 100).toFixed(1)}%)`, 'Count']} />
+                        <Bar dataKey="count" fill="#10B981" label={{ position: 'top', fontSize: 11 }} />
                       </BarChart>
                     </ResponsiveContainer>
                   )
@@ -609,17 +615,25 @@ export default function StudentDashboardPage() {
                   const cognitiveData = Object.entries(cognitiveCounts)
                     .map(([name, count]) => ({ name, count }))
                   
+                  const totalCognitive = cognitiveData.reduce((sum, item) => sum + item.count, 0)
+                  
                   const cognitiveColors = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#EF4444', '#10B981']
                   
                   return (
                     <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
-                        <Pie data={cognitiveData} dataKey="count" nameKey="name" outerRadius={80} label>
+                        <Pie 
+                          data={cognitiveData} 
+                          dataKey="count" 
+                          nameKey="name" 
+                          outerRadius={80} 
+                          label={(entry: any) => `${entry.name}: ${entry.count} (${((entry.count / totalCognitive) * 100).toFixed(1)}%)`}
+                        >
                           {cognitiveData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={cognitiveColors[index % cognitiveColors.length]} />
                           ))}
                         </Pie>
-                        <Tooltip />
+                        <Tooltip formatter={(value: any) => [`${value} (${((value / totalCognitive) * 100).toFixed(1)}%)`, 'Count']} />
                         <Legend />
                       </PieChart>
                     </ResponsiveContainer>
@@ -650,6 +664,8 @@ export default function StudentDashboardPage() {
                     .filter(level => bloomCounts[level])
                     .map(level => ({ level, count: bloomCounts[level] }))
                   
+                  const totalBloom = bloomData.reduce((sum, item) => sum + item.count, 0)
+                  
                   return (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={bloomData} margin={{ top: 10, right: 10, left: 0, bottom: 60 }}>
@@ -662,8 +678,8 @@ export default function StudentDashboardPage() {
                           tick={{ fontSize: 11 }}
                         />
                         <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="count" fill="#8B5CF6" />
+                        <Tooltip formatter={(value: any) => [`${value} (${((value / totalBloom) * 100).toFixed(1)}%)`, 'Count']} />
+                        <Bar dataKey="count" fill="#8B5CF6" label={{ position: 'top', fontSize: 11 }} />
                       </BarChart>
                     </ResponsiveContainer>
                   )
@@ -767,46 +783,48 @@ export default function StudentDashboardPage() {
           {!errorLoading && errorData && errorData.recentErrors.length > 0 && (
             <Card>
               <CardHeader className="flex items-center justify-between">
-                <CardTitle>Recent Errors</CardTitle>
-                <div className="flex items-center gap-3">
-                  <label className="text-xs flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={showEmbeddingPreview}
-                      onChange={(e) => setShowEmbeddingPreview(e.target.checked)}
-                    />
-                    <span>Show embeddings</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={clusterCount}
-                      onChange={(e) => setClusterCount(Math.max(1, Math.min(10, Number(e.target.value || 2))))}
-                      className="w-16 text-sm px-2 py-1 rounded border"
-                      aria-label="cluster-count"
-                    />
-                    <button
-                      className="px-2 py-1 text-xs rounded bg-primary text-white"
-                      onClick={() => {
-                        const items = (errorData.recentErrors || []).filter((r) => Array.isArray(r.embedding) && (r.embedding as number[]).length > 0)
-                        if (items.length === 0) return
-                        const X = items.map((r) => (r.embedding as number[]))
-                        const labels = kmeans(X, clusterCount, 10)
-                        const map: Record<string, number> = {}
-                        items.forEach((it, idx) => { map[it.id] = labels[idx] })
-                        setClusters(map)
-                      }}
-                    >
-                      Cluster
-                    </button>
+                <div className="flex items-center justify-between w-full">
+                  <CardTitle>Recent Errors ({errorData.recentErrors.length} total)</CardTitle>
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={showEmbeddingPreview}
+                        onChange={(e) => setShowEmbeddingPreview(e.target.checked)}
+                      />
+                      <span>Show embeddings</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={clusterCount}
+                        onChange={(e) => setClusterCount(Math.max(1, Math.min(10, Number(e.target.value || 2))))}
+                        className="w-16 text-sm px-2 py-1 rounded border"
+                        aria-label="cluster-count"
+                      />
+                      <button
+                        className="px-2 py-1 text-xs rounded bg-primary text-white"
+                        onClick={() => {
+                          const items = (errorData.recentErrors || []).filter((r) => Array.isArray(r.embedding) && (r.embedding as number[]).length > 0)
+                          if (items.length === 0) return
+                          const X = items.map((r) => (r.embedding as number[]))
+                          const labels = kmeans(X, clusterCount, 10)
+                          const map: Record<string, number> = {}
+                          items.forEach((it, idx) => { map[it.id] = labels[idx] })
+                          setClusters(map)
+                        }}
+                      >
+                        Cluster
+                      </button>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {errorData.recentErrors.map((error: ErrorAnalytics['recentErrors'][number]) => {
+                  {errorData.recentErrors.slice((errorPage - 1) * errorsPerPage, errorPage * errorsPerPage).map((error: ErrorAnalytics['recentErrors'][number]) => {
                     const preview = error.embeddingPreview ?? (Array.isArray(error.embedding) ? (error.embedding as number[]).slice(0, 8) : null)
                     return (
                       <a href={`/metrics/submission/${error.submissionId}`} key={error.id} className="block border rounded-lg p-4 space-y-2 hover:bg-muted/40 transition-colors">
@@ -873,6 +891,54 @@ export default function StudentDashboardPage() {
                     )
                   })}
                 </div>
+                
+                {/* Pagination Controls */}
+                {errorData.recentErrors.length > errorsPerPage && (
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {((errorPage - 1) * errorsPerPage) + 1} to {Math.min(errorPage * errorsPerPage, errorData.recentErrors.length)} of {errorData.recentErrors.length} errors
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setErrorPage(p => Math.max(1, p - 1))}
+                        disabled={errorPage === 1}
+                        className="px-3 py-1 text-sm rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted"
+                      >
+                        Previous
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.ceil(errorData.recentErrors.length / errorsPerPage) }, (_, i) => i + 1)
+                          .filter(page => {
+                            // Show first, last, current, and adjacent pages
+                            const totalPages = Math.ceil(errorData.recentErrors.length / errorsPerPage)
+                            return page === 1 || page === totalPages || Math.abs(page - errorPage) <= 1
+                          })
+                          .map((page, idx, arr) => (
+                            <React.Fragment key={page}>
+                              {idx > 0 && arr[idx - 1] !== page - 1 && (
+                                <span className="px-2 text-muted-foreground">...</span>
+                              )}
+                              <button
+                                onClick={() => setErrorPage(page)}
+                                className={`px-3 py-1 text-sm rounded border ${
+                                  errorPage === page ? 'bg-primary text-white' : 'hover:bg-muted'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            </React.Fragment>
+                          ))}
+                      </div>
+                      <button
+                        onClick={() => setErrorPage(p => Math.min(Math.ceil(errorData.recentErrors.length / errorsPerPage), p + 1))}
+                        disabled={errorPage === Math.ceil(errorData.recentErrors.length / errorsPerPage)}
+                        className="px-3 py-1 text-sm rounded border disabled:opacity-50 disabled:cursor-not-allowed hover:bg-muted"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
