@@ -7,6 +7,7 @@ import { DashboardNav } from "@/components/dashboard-nav"
 import { ClassManagement } from "@/components/class-management"
 import { AssignmentCreation } from "@/components/assignment-creation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { apiClient } from "@/lib/api"
 
 export default function InstructorClassesPage() {
