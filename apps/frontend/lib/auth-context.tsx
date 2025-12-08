@@ -30,14 +30,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkAuthStatus = async () => {
     try {
       const token = localStorage.getItem('educode_token')
-      if (token) {
+      const storedUser = localStorage.getItem('educode_user')
+      
+      if (token && storedUser) {
         apiClient.setToken(token)
-        const userData = await apiClient.getCurrentUser()
-        setUser(userData.user)
+        // First restore from localStorage for immediate display
+        setUser(JSON.parse(storedUser))
+        
+        // Then verify with backend
+        try {
+          const userData = await apiClient.getCurrentUser()
+          setUser(userData.user)
+          localStorage.setItem('educode_user', JSON.stringify(userData.user))
+        } catch (verifyErr) {
+          // If verification fails but we have stored user, keep it
+          console.warn('Could not verify user with backend, using cached data')
+        }
       }
     } catch (err) {
       // Token might be invalid, clear it
       localStorage.removeItem('educode_token')
+      localStorage.removeItem('educode_user')
       apiClient.setToken(null)
     } finally {
       setIsLoading(false)
@@ -51,6 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await apiClient.login(email, password)
       setUser(response.user)
+      // Store user data in localStorage
+      localStorage.setItem('educode_user', JSON.stringify(response.user))
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed'
       setError(errorMessage)
@@ -67,6 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await apiClient.register(email, password, name, role)
       setUser(response.user)
+      // Store user data in localStorage
+      localStorage.setItem('educode_user', JSON.stringify(response.user))
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Registration failed'
       setError(errorMessage)

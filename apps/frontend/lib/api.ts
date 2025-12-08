@@ -314,6 +314,18 @@ class ApiClient {
   }
 
   // Instructor endpoints
+  async getInstructorClasses() {
+    return this.request('/api/instructor/classes')
+  }
+
+  async getClassDetails(classId: string) {
+    return this.request(`/api/instructor/classes/${classId}`)
+  }
+
+  async getClassAnalytics(classId: string) {
+    return this.request(`/api/instructor/classes/${classId}/analytics`)
+  }
+
   async getClassAnalytics() {
     if (shouldUseMock('analytics')) {
       return Promise.resolve({ 

@@ -209,98 +209,155 @@ export default function ProfilePage() {
                   </CardContent>
                 </Card>
 
-                {/* Achievements */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Achievements</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {achievements.map((achievement, index) => {
-                        const Icon = achievement.icon
-                        return (
-                          <div key={index} className="flex items-center space-x-3 p-3 rounded-lg border bg-muted/50">
-                            <Icon className={`h-8 w-8 ${achievement.color}`} />
-                            <div>
-                              <h4 className="font-medium">{achievement.name}</h4>
-                              <p className="text-sm text-muted-foreground">{achievement.description}</p>
+                {/* Achievements - Only for students */}
+                {user?.role === 'student' && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Achievements</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {achievements.map((achievement, index) => {
+                          const Icon = achievement.icon
+                          return (
+                            <div key={index} className="flex items-center space-x-3 p-3 rounded-lg border bg-muted/50">
+                              <Icon className={`h-8 w-8 ${achievement.color}`} />
+                              <div>
+                                <h4 className="font-medium">{achievement.name}</h4>
+                                <p className="text-sm text-muted-foreground">{achievement.description}</p>
+                              </div>
                             </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
+                          )
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
-              {/* Stats Sidebar */}
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Statistics</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Target className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Problems Solved</span>
+              {/* Stats Sidebar - Only for students */}
+              {user?.role === 'student' && (
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Statistics</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Target className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">Problems Solved</span>
+                        </div>
+                        <span className="font-bold">{stats.problemsSolved}/{stats.totalProblems}</span>
                       </div>
-                      <span className="font-bold">{stats.problemsSolved}/{stats.totalProblems}</span>
-                    </div>
-                    <Separator />
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Success Rate</span>
+                      <Separator />
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">Success Rate</span>
+                        </div>
+                        <span className="font-bold">{stats.successRate}%</span>
                       </div>
-                      <span className="font-bold">{stats.successRate}%</span>
-                    </div>
-                    <Separator />
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Trophy className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Class Rank</span>
+                      <Separator />
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Trophy className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">Class Rank</span>
+                        </div>
+                        <span className="font-bold">#{stats.rank}</span>
                       </div>
-                      <span className="font-bold">#{stats.rank}</span>
-                    </div>
-                    <Separator />
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Code2 className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Current Streak</span>
+                      <Separator />
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Code2 className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">Current Streak</span>
+                        </div>
+                        <span className="font-bold">{stats.currentStreak} days</span>
                       </div>
-                      <span className="font-bold">{stats.currentStreak} days</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Activity</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Activity</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="text-sm">
+                          <p className="text-muted-foreground">Last active</p>
+                          <p className="font-medium">Today at 2:30 PM</p>
+                        </div>
+                        <Separator />
+                        <div className="text-sm">
+                          <p className="text-muted-foreground">Joined</p>
+                          <p className="font-medium">September 2024</p>
+                        </div>
+                        <Separator />
+                        <div className="text-sm">
+                          <p className="text-muted-foreground">Total submissions</p>
+                          <p className="font-medium">156</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Instructor Info Sidebar */}
+              {user?.role === 'instructor' && (
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Instructor Info</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="text-sm">
+                        <p className="text-muted-foreground">Role</p>
+                        <Badge className="mt-1">Instructor</Badge>
+                      </div>
+                      <Separator />
+                      <div className="text-sm">
+                        <p className="text-muted-foreground">Member since</p>
+                        <p className="font-medium">{new Date(user.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+                      </div>
+                      <Separator />
                       <div className="text-sm">
                         <p className="text-muted-foreground">Last active</p>
-                        <p className="font-medium">Today at 2:30 PM</p>
+                        <p className="font-medium">Today</p>
                       </div>
-                      <Separator />
-                      <div className="text-sm">
-                        <p className="text-muted-foreground">Joined</p>
-                        <p className="font-medium">September 2024</p>
-                      </div>
-                      <Separator />
-                      <div className="text-sm">
-                        <p className="text-muted-foreground">Total submissions</p>
-                        <p className="font-medium">156</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Quick Links</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <Button variant="outline" className="w-full justify-start" asChild>
+                        <a href="/dashboard/instructor">
+                          <Target className="h-4 w-4 mr-2" />
+                          My Classes
+                        </a>
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start" asChild>
+                        <a href="/metrics/instructor">
+                          <TrendingUp className="h-4 w-4 mr-2" />
+                          Analytics
+                        </a>
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start" asChild>
+                        <a href="/problems/create">
+                          <Code2 className="h-4 w-4 mr-2" />
+                          Create Problem
+                        </a>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </div>
           </div>
         </main>
