@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import apiClient from "@/lib/api"
 import { CodeEditor } from "@/components/code-editor"
+import { ProtectedRoute } from "@/components/protected-route"
 
 type SubmissionDetail = {
   id: string
@@ -95,11 +96,12 @@ export default function SubmissionDetailPage({ params }: { params: { id: string 
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Submission Detail</h1>
-        <Link href="/metrics/student" className="text-primary hover:underline">← Back to Metrics</Link>
-      </div>
+    <ProtectedRoute>
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Submission Detail</h1>
+          <Link href="/metrics/student" className="text-primary hover:underline">← Back to Metrics</Link>
+        </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
@@ -196,6 +198,6 @@ export default function SubmissionDetailPage({ params }: { params: { id: string 
           <CodeEditor value={code} onChange={setCode} language={data.language || "plaintext"} readOnly />
         </div>
       </div>
-    </div>
+    </ProtectedRoute>
   )
 }
