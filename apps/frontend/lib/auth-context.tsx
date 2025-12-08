@@ -35,23 +35,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token && storedUser) {
         apiClient.setToken(token)
         // First restore from localStorage for immediate display
-        setUser(JSON.parse(storedUser))
+        const parsedUser = JSON.parse(storedUser)
+        setUser(parsedUser)
         
-        // Then verify with backend
-        try {
-          const userData = await apiClient.getCurrentUser()
-          setUser(userData.user)
-          localStorage.setItem('educode_user', JSON.stringify(userData.user))
-        } catch (verifyErr) {
-          // If verification fails but we have stored user, keep it
-          console.warn('Could not verify user with backend, using cached data')
-        }
+        // Then verify with backend in background (don't block UI)
+        apiClient.getCurrentUser()
+          .then((userData) => {
+            setUser(userData.user)
+            localStorage.setItem('educode_user', JSON.stringify(userData.user))
+          })
+          .catch((verifyErr) => {
+            // If verification fails with 401, token is invalid - clear everything
+            if (verifyErr.message?.includes('401') || verifyErr.message?.includes('Unauthorized')) {
+              console.warn('Token invalid, clearing auth')
+              setUser(null)
+              localStorage.removeItem('educode_token')
+              localStorage.removeItem('educode_user')
+              apiClient.setToken(null)
+            } else {
+              // Other errors (network, 500, etc) - keep using cached user
+              console.warn('Could not verify user with backend, using cached data:', verifyErr)
+            }
+          })
       }
     } catch (err) {
-      // Token might be invalid, clear it
+      // Token parsing failed, clear it
+      console.error('Auth check error:', err)
       localStorage.removeItem('educode_token')
       localStorage.removeItem('educode_user')
       apiClient.setToken(null)
+      setUser(null)
     } finally {
       setIsLoading(false)
     }
