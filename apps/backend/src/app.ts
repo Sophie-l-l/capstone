@@ -119,7 +119,6 @@ if (!studentDashboardRoutes && !studentSubmissionsRoutes && !studentErrorsRoutes
   console.error('No student routes available to mount under /api/students');
 } else {
   app.use("/api/students", studentsCombined);
-} app.use("/api/students", studentsCombined);
 }
 
 // Instructor routes
