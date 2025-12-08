@@ -8,6 +8,7 @@ import { DashboardNav } from "@/components/dashboard-nav"
 import { SkillMasteryChart } from "@/components/skill-mastery-chart"
 import { RecentSubmissions } from "@/components/recent-submissions"
 import { RecommendedProblems } from "@/components/recommended-problems"
+import { MyAssignments } from "@/components/my-assignments"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Trophy, Target, Flame, TrendingUp } from "lucide-react"
 import { apiClient } from "@/lib/api"
@@ -18,7 +19,9 @@ export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState<any>(null)
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [recentSubmissions, setRecentSubmissions] = useState<any[]>([])
+  const [assignments, setAssignments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [assignmentsLoading, setAssignmentsLoading] = useState(true)
 
   useEffect(() => {
     if (user?.role === "instructor") {
@@ -41,6 +44,56 @@ export default function DashboardPage() {
         .catch(error => {
           console.error('Error fetching dashboard data:', error)
           setLoading(false)
+        })
+
+      // Fetch assignments from enrolled classes
+      apiClient.getClasses()
+        .then(async (classesData) => {
+          const classes = classesData.classes || []
+          const allAssignments = []
+          
+          for (const cls of classes) {
+            try {
+              const assignmentsData = await apiClient.getClassAssignments(cls.id)
+              const problemSets = assignmentsData.problemSets || []
+              
+              for (const ps of problemSets) {
+                // Get user's submissions to calculate completion
+                const submissions = await apiClient.getSubmissions({ problemId: undefined })
+                const userSubmissions = submissions.submissions || []
+                
+                const completedProblemIds = new Set(
+                  userSubmissions
+                    .filter((sub: any) => sub.status === 'accepted')
+                    .map((sub: any) => sub.problemId)
+                )
+                
+                const assignmentProblems = ps.problems || []
+                const completedProblems = assignmentProblems.filter((p: any) => 
+                  completedProblemIds.has(p.id)
+                ).length
+
+                allAssignments.push({
+                  id: ps.id,
+                  title: ps.title,
+                  className: cls.name,
+                  dueDate: ps.dueDate,
+                  totalProblems: assignmentProblems.length,
+                  completedProblems,
+                  problems: assignmentProblems
+                })
+              }
+            } catch (error) {
+              console.error(`Error fetching assignments for class ${cls.id}:`, error)
+            }
+          }
+          
+          setAssignments(allAssignments)
+          setAssignmentsLoading(false)
+        })
+        .catch(error => {
+          console.error('Error fetching assignments:', error)
+          setAssignmentsLoading(false)
         })
     }
   }, [user, router])
@@ -150,7 +203,10 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <SkillMasteryChart skills={skills} />
+              <div className="space-y-6">
+                <SkillMasteryChart skills={skills} />
+                <MyAssignments assignments={assignments} loading={assignmentsLoading} />
+              </div>
               <RecommendedProblems problems={recommendations} />
             </div>
 

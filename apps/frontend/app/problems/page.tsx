@@ -10,9 +10,11 @@ import { apiClient } from "@/lib/api"
 
 export default function ProblemsPage() {
   const [problems, setProblems] = useState<any[]>([])
+  const [assignments, setAssignments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Fetch problems
     apiClient.getProblems({ limit: 100 })
       .then(data => {
         setProblems(data.problems || [])
@@ -21,6 +23,39 @@ export default function ProblemsPage() {
       .catch(error => {
         console.error('Error fetching problems:', error)
         setLoading(false)
+      })
+
+    // Fetch assignments to show badges
+    apiClient.getClasses()
+      .then(async (classesData) => {
+        const classes = classesData.classes || []
+        const assignmentInfos: any[] = []
+        
+        for (const cls of classes) {
+          try {
+            const assignmentsData = await apiClient.getClassAssignments(cls.id)
+            const problemSets = assignmentsData.problemSets || []
+            
+            for (const ps of problemSets) {
+              const assignmentProblems = ps.problems || []
+              assignmentProblems.forEach((problem: any) => {
+                assignmentInfos.push({
+                  problemId: problem.id,
+                  assignmentTitle: ps.title,
+                  dueDate: ps.dueDate,
+                  className: cls.name
+                })
+              })
+            }
+          } catch (error) {
+            console.error(`Error fetching assignments for class ${cls.id}:`, error)
+          }
+        }
+        
+        setAssignments(assignmentInfos)
+      })
+      .catch(error => {
+        console.error('Error fetching assignments:', error)
       })
   }, [])
 
@@ -100,7 +135,7 @@ export default function ProblemsPage() {
               </Card>
             </div>
 
-            <ProblemsTable problems={problems} />
+            <ProblemsTable problems={problems} assignments={assignments} />
           </div>
         </main>
       </div>

@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Code2, LayoutDashboard, BookOpen, User, LogOut, Settings, PlusCircle, Users, FileText } from "lucide-react"
+import { Code2, LayoutDashboard, BookOpen, User, LogOut, Settings, PlusCircle, Users, FileText, ListTodo } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export function DashboardNav() {
@@ -33,15 +33,16 @@ export function DashboardNav() {
     : `/metrics/student`
 
   const studentLinks = [
-    { href: metricsHref, label: "Dashboard", icon: LayoutDashboard },
-    { href: "/submissions", label: "Submissions", icon: FileText },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/assignments", label: "Assignments", icon: ListTodo },
     { href: "/problems", label: "Problems", icon: BookOpen },
+    { href: "/submissions", label: "Submissions", icon: FileText },
     { href: "/profile", label: "Profile", icon: User },
   ]
 
   const instructorLinks = [
-    { href: metricsHref, label: "Dashboard", icon: LayoutDashboard },
-    { href: "/classes", label: "Classes", icon: Users },
+    { href: "/dashboard/instructor", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/instructor/classes", label: "Classes", icon: Users },
     { href: "/problems", label: "Problems", icon: BookOpen },
     { href: "/create-problem", label: "Create Problem", icon: PlusCircle },
     { href: "/profile", label: "Profile", icon: User },

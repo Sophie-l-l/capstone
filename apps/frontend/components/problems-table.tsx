@@ -8,13 +8,21 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { Problem } from "@/lib/types"
-import { Search, ArrowUpDown } from "lucide-react"
+import { Search, ArrowUpDown, Calendar, BookOpen } from "lucide-react"
+
+interface AssignmentInfo {
+  problemId: string
+  assignmentTitle: string
+  dueDate: string | null
+  className: string
+}
 
 interface ProblemsTableProps {
   problems: Problem[]
+  assignments?: AssignmentInfo[]
 }
 
-export function ProblemsTable({ problems }: ProblemsTableProps) {
+export function ProblemsTable({ problems, assignments = [] }: ProblemsTableProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all")
   const [topicFilter, setTopicFilter] = useState<string>("all")
@@ -22,6 +30,24 @@ export function ProblemsTable({ problems }: ProblemsTableProps) {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
 
   const allTopics = Array.from(new Set(problems.flatMap((p) => p.topics)))
+
+  const getAssignmentInfo = (problemId: string): AssignmentInfo | undefined => {
+    return assignments.find(a => a.problemId === problemId)
+  }
+
+  const formatDueDate = (dueDate: string | null) => {
+    if (!dueDate) return ""
+    const date = new Date(dueDate)
+    const now = new Date()
+    const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    
+    if (diffDays < 0) return "Past due"
+    if (diffDays === 0) return "Due today"
+    if (diffDays === 1) return "Due tomorrow"
+    if (diffDays <= 7) return `Due in ${diffDays} days`
+    
+    return `Due ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+  }
 
   const filteredProblems = problems
     .filter((problem) => {
@@ -137,47 +163,67 @@ export function ProblemsTable({ problems }: ProblemsTableProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredProblems.map((problem) => (
-                <TableRow key={problem.id} className="cursor-pointer hover:bg-accent/50">
-                  <TableCell>
-                    <Link href={`/problems/${problem.id}`} className="font-medium hover:text-primary">
-                      {problem.title}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getDifficultyColor(problem.difficulty)}>{problem.difficulty}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {problem.topics.slice(0, 2).map((topic) => (
-                        <Badge key={topic} variant="outline" className="text-xs">
-                          {topic}
-                        </Badge>
-                      ))}
-                      {problem.topics.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{problem.topics.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {problem.knowledgeComponents?.slice(0, 2).map((kc: string) => (
-                        <Badge key={kc} variant="secondary" className="text-xs">
-                          {kc.replace(/_/g, ' ')}
-                        </Badge>
-                      ))}
-                      {problem.knowledgeComponents?.length > 2 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{problem.knowledgeComponents.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">{problem.acceptanceRate}%</TableCell>
-                </TableRow>
-              ))
+              filteredProblems.map((problem) => {
+                const assignmentInfo = getAssignmentInfo(problem.id)
+                
+                return (
+                  <TableRow key={problem.id} className="cursor-pointer hover:bg-accent/50">
+                    <TableCell>
+                      <div className="space-y-1">
+                        <Link href={`/problems/${problem.id}`} className="font-medium hover:text-primary">
+                          {problem.title}
+                        </Link>
+                        {assignmentInfo && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100">
+                              <BookOpen className="h-3 w-3 mr-1" />
+                              {assignmentInfo.assignmentTitle}
+                            </Badge>
+                            {assignmentInfo.dueDate && (
+                              <span className="text-muted-foreground flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {formatDueDate(assignmentInfo.dueDate)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getDifficultyColor(problem.difficulty)}>{problem.difficulty}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {problem.topics.slice(0, 2).map((topic) => (
+                          <Badge key={topic} variant="outline" className="text-xs">
+                            {topic}
+                          </Badge>
+                        ))}
+                        {problem.topics.length > 2 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{problem.topics.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {problem.knowledgeComponents?.slice(0, 2).map((kc: string) => (
+                          <Badge key={kc} variant="secondary" className="text-xs">
+                            {kc.replace(/_/g, ' ')}
+                          </Badge>
+                        ))}
+                        {problem.knowledgeComponents?.length > 2 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{problem.knowledgeComponents.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">{problem.acceptanceRate}%</TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>

@@ -31,6 +31,8 @@ let studentSubmissionsRoutes: any = require("./routes/studentSubmissions");
 let studentErrorsRoutes: any = require("./routes/studentErrors");
 let recommendationsRoutes: any = require("./routes/recommendations");
 let instructorRoutes: any = require("./routes/instructorRoutes");
+let classRoutes: any = require("./routes/classes");
+let problemSetRoutes: any = require("./routes/problemSets");
 let errorsRoutes: any = null;
 let devRoutes: any = null;
 if (process.env.NODE_ENV !== 'production') {
@@ -57,6 +59,8 @@ studentSubmissionsRoutes = normalizeRouter(studentSubmissionsRoutes);
 studentErrorsRoutes = normalizeRouter(studentErrorsRoutes);
 recommendationsRoutes = normalizeRouter(recommendationsRoutes);
 instructorRoutes = normalizeRouter(instructorRoutes);
+classRoutes = normalizeRouter(classRoutes);
+problemSetRoutes = normalizeRouter(problemSetRoutes);
 errorsRoutes = normalizeRouter(errorsRoutes);
 devRoutes = normalizeRouter(devRoutes);
 
@@ -126,6 +130,19 @@ if (instructorRoutes) {
   app.use("/api/instructor", instructorRoutes);
 } else {
   console.error('Instructor routes not available');
+}
+
+// Class and assignment routes
+if (classRoutes) {
+  app.use("/api/classes", classRoutes);
+} else {
+  console.error('Class routes not available');
+}
+
+if (problemSetRoutes) {
+  app.use("/api/problem-sets", problemSetRoutes);
+} else {
+  console.error('Problem set routes not available');
 }
 
 // Analysis routes (AI-related)

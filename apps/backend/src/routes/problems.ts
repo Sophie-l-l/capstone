@@ -15,7 +15,8 @@ router.get("/", async (req: Request, res: Response) => {
       search,
       page = "1",
       limit = "20",
-      sortBy = "title"
+      sortBy = "title",
+      createdBy // Optional: filter by creator
     } = req.query;
 
     const pageNum = parseInt(page as string);
@@ -40,6 +41,15 @@ router.get("/", async (req: Request, res: Response) => {
         { title: { contains: search as string, mode: 'insensitive' } },
         { description: { contains: search as string, mode: 'insensitive' } }
       ];
+    }
+
+    // Filter by creator (useful for instructors to see their own problems)
+    if (createdBy === "me" && (req as any).user) {
+      where.createdBy = (req as any).user.userId;
+    } else if (createdBy === "system") {
+      where.createdBy = null; // System problems
+    } else if (createdBy) {
+      where.createdBy = createdBy; // Specific user ID
     }
 
     // Build order by clause
@@ -170,6 +180,8 @@ router.post("/", authenticateToken, async (req: Request, res: Response) => {
     }
 
     // Create problem with test cases
+    const userId = (req as any).user.userId; // Get instructor's user ID
+    
     const problem = await prisma.problem.create({
       data: {
         title,
@@ -184,6 +196,7 @@ router.post("/", authenticateToken, async (req: Request, res: Response) => {
         constraints: constraints || [],
         acceptanceRate: 0,
         totalSubmissions: 0,
+        createdBy: userId, // CRITICAL FIX: Link problem to instructor
         testCases: {
           create: testCases.map((tc: any) => ({
             input: tc.input,
@@ -195,7 +208,14 @@ router.post("/", authenticateToken, async (req: Request, res: Response) => {
         }
       },
       include: {
-        testCases: true
+        testCases: true,
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
       }
     });
 

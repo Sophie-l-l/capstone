@@ -371,6 +371,56 @@ class ApiClient {
       body: JSON.stringify(problemData),
     })
   }
+
+  // Class endpoints
+  async getClasses() {
+    return this.request('/api/classes')
+  }
+
+  async createClass(data: { name: string; description?: string }) {
+    return this.request('/api/classes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getClassDetails(classId: string) {
+    return this.request(`/api/classes/${classId}`)
+  }
+
+  async enrollInClass(classId: string) {
+    return this.request(`/api/classes/${classId}/enroll`, {
+      method: 'POST',
+    })
+  }
+
+  // Assignment (ProblemSet) endpoints
+  async getClassAssignments(classId: string) {
+    return this.request(`/api/problem-sets/class/${classId}`)
+  }
+
+  async createAssignment(data: {
+    title: string
+    classId: string
+    problemIds: string[]
+    dueDate?: string
+  }) {
+    return this.request('/api/problem-sets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getAssignment(assignmentId: string) {
+    return this.request(`/api/problem-sets/${assignmentId}`)
+  }
+
+  async addProblemToAssignment(assignmentId: string, problemId: string) {
+    return this.request(`/api/problem-sets/${assignmentId}/problems`, {
+      method: 'POST',
+      body: JSON.stringify({ problemId }),
+    })
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL)
