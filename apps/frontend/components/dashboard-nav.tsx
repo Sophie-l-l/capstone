@@ -33,7 +33,7 @@ export function DashboardNav() {
     : `/metrics/student`
 
   const studentLinks = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/student", label: "Dashboard", icon: LayoutDashboard },
     { href: "/assignments", label: "Assignments", icon: ListTodo },
     { href: "/problems", label: "Problems", icon: BookOpen },
     { href: "/submissions", label: "Submissions", icon: FileText },
@@ -54,7 +54,7 @@ export function DashboardNav() {
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href={user?.role === "instructor" ? "/dashboard/instructor" : "/dashboard/student"} className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-accent">
               <Code2 className="h-5 w-5 text-primary-foreground" />
             </div>
