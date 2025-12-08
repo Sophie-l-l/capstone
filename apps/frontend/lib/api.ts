@@ -274,6 +274,45 @@ class ApiClient {
     return this.request('/api/recommendations')
   }
 
+  // Student dashboard endpoint
+  async getStudentDashboard(studentId: string) {
+    if (shouldUseMock('analytics')) {
+      return Promise.resolve({
+        student: {
+          id: studentId,
+          name: mockUser.name,
+          email: mockUser.email,
+          totalSubmissions: mockUserStats.totalSubmissions,
+          accuracy: mockUserStats.successRate / 100
+        },
+        accuracyByLanguage: [
+          { language: 'javascript', accuracy: 0.75 },
+          { language: 'python', accuracy: 0.82 },
+          { language: 'java', accuracy: 0.68 }
+        ],
+        accuracyByTopic: mockKnowledgeComponents.slice(0, 5).map(kc => ({
+          topic: kc.name,
+          accuracy: kc.mastery / 100
+        })),
+        errorDistribution: [
+          { status: 'accepted', count: 45 },
+          { status: 'wrong_answer', count: 12 },
+          { status: 'time_limit_exceeded', count: 5 },
+          { status: 'compile_error', count: 3 }
+        ],
+        kcMastery: mockKnowledgeComponents.map(kc => ({
+          kc: kc.name,
+          pKnown: kc.mastery / 100
+        })),
+        timeSpent: {
+          totalSeconds: 7200,
+          activeSeconds: 7200
+        }
+      })
+    }
+    return this.request(`/api/students/${studentId}/dashboard`)
+  }
+
   // Instructor endpoints
   async getClassAnalytics() {
     if (shouldUseMock('analytics')) {

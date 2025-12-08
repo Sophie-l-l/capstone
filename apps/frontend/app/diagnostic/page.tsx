@@ -1,3 +1,5 @@
+'use client';
+
 // Diagnostic page to check environment variables
 export default function DiagnosticPage() {
   const config = {

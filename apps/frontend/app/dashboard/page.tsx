@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { ProtectedRoute } from "@/components/protected-route"
@@ -9,19 +9,65 @@ import { SkillMasteryChart } from "@/components/skill-mastery-chart"
 import { RecentSubmissions } from "@/components/recent-submissions"
 import { RecommendedProblems } from "@/components/recommended-problems"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { mockKnowledgeComponents, mockSubmissions, mockProblems, mockUserStats } from "@/lib/mock-data"
 import { Trophy, Target, Flame, TrendingUp } from "lucide-react"
+import { apiClient } from "@/lib/api"
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const stats = mockUserStats
+  const [dashboardData, setDashboardData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (user?.role === "instructor") {
       router.push("/dashboard/instructor")
+      return
+    }
+
+    if (user?.id) {
+      apiClient.getStudentDashboard(user.id)
+        .then(data => {
+          setDashboardData(data)
+          setLoading(false)
+        })
+        .catch(error => {
+          console.error('Error fetching dashboard data:', error)
+          setLoading(false)
+        })
     }
   }, [user, router])
+
+  if (loading || !dashboardData) {
+    return (
+      <ProtectedRoute allowedRoles={["student"]}>
+        <div className="min-h-screen bg-background">
+          <DashboardNav />
+          <main className="container py-8">
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+            </div>
+          </main>
+        </div>
+      </ProtectedRoute>
+    )
+  }
+
+  const stats = {
+    problemsSolved: Math.round(dashboardData.student.totalSubmissions * dashboardData.student.accuracy),
+    totalProblems: 58,
+    successRate: Math.round(dashboardData.student.accuracy * 100),
+    currentStreak: 5,
+    longestStreak: 12,
+    rank: 1,
+    totalStudents: 45
+  }
+
+  const skills = dashboardData.kcMastery.map((kc: any) => ({
+    name: kc.kc,
+    mastery: Math.round(kc.pKnown * 100),
+    problemsSolved: Math.round(kc.pKnown * 20),
+    totalProblems: 20
+  }))
 
   if (user?.role === "instructor") {
     return (
@@ -96,11 +142,11 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <SkillMasteryChart skills={mockKnowledgeComponents} />
-              <RecommendedProblems problems={mockProblems} />
+              <SkillMasteryChart skills={skills} />
+              <RecommendedProblems problems={[]} />
             </div>
 
-            <RecentSubmissions submissions={mockSubmissions} problems={mockProblems} />
+            <RecentSubmissions submissions={[]} problems={[]} />
           </div>
         </main>
       </div>

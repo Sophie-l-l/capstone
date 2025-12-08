@@ -41,6 +41,7 @@ export function DashboardNav() {
 
   const instructorLinks = [
     { href: metricsHref, label: "Dashboard", icon: LayoutDashboard },
+    { href: "/classes", label: "Classes", icon: Users },
     { href: "/problems", label: "Problems", icon: BookOpen },
     { href: "/create-problem", label: "Create Problem", icon: PlusCircle },
     { href: "/students", label: "Students", icon: Users },

@@ -544,35 +544,40 @@ export default function StudentDashboardPage() {
                   
                   return (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={errorData.topErrors} margin={{ top: 20, right: 20, left: 0, bottom: 60 }}>
+                      <BarChart data={errorData.topErrors} margin={{ top: 20, right: 30, left: 10, bottom: 80 }}>
                         <defs>
                           <linearGradient id="colorError" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#EF4444" stopOpacity={0.8}/>
                             <stop offset="95%" stopColor="#EF4444" stopOpacity={0.3}/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                         <XAxis 
                           dataKey="label" 
                           angle={-45} 
                           textAnchor="end" 
-                          height={80}
-                          tick={{ fontSize: 11, fill: '#6B7280' }}
+                          height={90}
+                          interval={0}
+                          tick={{ fontSize: 10, fill: '#6B7280' }}
                           tickLine={{ stroke: '#E5E7EB' }}
+                          tickMargin={8}
                         />
                         <YAxis 
-                          tick={{ fontSize: 12, fill: '#6B7280' }}
+                          tick={{ fontSize: 11, fill: '#6B7280' }}
                           tickLine={{ stroke: '#E5E7EB' }}
+                          width={40}
                         />
                         <Tooltip 
-                          formatter={(value: any) => [`${value} (${((value / totalErrors) * 100).toFixed(1)}%)`, 'Count']}
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
+                          formatter={(value: any) => [`${value} errors (${((value / totalErrors) * 100).toFixed(1)}%)`, 'Count']}
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '8px 12px' }}
+                          cursor={{ fill: '#F3F4F6', opacity: 0.3 }}
                         />
                         <Bar 
                           dataKey="count" 
                           fill="url(#colorError)" 
-                          radius={[8, 8, 0, 0]}
-                          label={{ position: 'top', fontSize: 10, fill: '#EF4444' }}
+                          radius={[6, 6, 0, 0]}
+                          maxBarSize={60}
+                          label={{ position: 'top', fontSize: 10, fill: '#EF4444', fontWeight: 600 }}
                         />
                       </BarChart>
                     </ResponsiveContainer>
@@ -607,7 +612,7 @@ export default function StudentDashboardPage() {
                   
                   return (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={surfaceData} margin={{ top: 20, right: 10, left: 0, bottom: 60 }}>
+                      <BarChart data={surfaceData} margin={{ top: 20, right: 20, left: 10, bottom: 75 }}>
                         <defs>
                           <linearGradient id="colorSurface" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
@@ -726,7 +731,7 @@ export default function StudentDashboardPage() {
                   
                   return (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={bloomData} margin={{ top: 20, right: 10, left: 0, bottom: 60 }}>
+                      <BarChart data={bloomData} margin={{ top: 20, right: 20, left: 10, bottom: 75 }}>
                         <defs>
                           <linearGradient id="colorBloom" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>

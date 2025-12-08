@@ -29,6 +29,7 @@ let codeExecutionRoutes: any = require("./routes/codeExecution");
 let studentDashboardRoutes: any = require("./routes/studentDashboard");
 let studentSubmissionsRoutes: any = require("./routes/studentSubmissions");
 let studentErrorsRoutes: any = require("./routes/studentErrors");
+let instructorRoutes: any = require("./routes/instructorRoutes");
 let errorsRoutes: any = null;
 let devRoutes: any = null;
 if (process.env.NODE_ENV !== 'production') {
@@ -53,6 +54,7 @@ codeExecutionRoutes = normalizeRouter(codeExecutionRoutes);
 studentDashboardRoutes = normalizeRouter(studentDashboardRoutes);
 studentSubmissionsRoutes = normalizeRouter(studentSubmissionsRoutes);
 studentErrorsRoutes = normalizeRouter(studentErrorsRoutes);
+instructorRoutes = normalizeRouter(instructorRoutes);
 errorsRoutes = normalizeRouter(errorsRoutes);
 devRoutes = normalizeRouter(devRoutes);
 
@@ -115,6 +117,13 @@ if (!studentDashboardRoutes && !studentSubmissionsRoutes && !studentErrorsRoutes
   console.error('No student routes available to mount under /api/students');
 } else {
   app.use("/api/students", studentsCombined);
+}
+
+// Instructor routes
+if (instructorRoutes) {
+  app.use("/api/instructor", instructorRoutes);
+} else {
+  console.error('Instructor routes not available');
 }
 
 // Analysis routes (AI-related)

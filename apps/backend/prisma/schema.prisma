@@ -26,10 +26,12 @@ model User {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  submissions  Submission[]
-  problems     Problem[] // Problems created by instructor
-  achievements UserAchievement[]
-  bktStates    BKTState[] // BKT (Bayesian Knowledge Tracing) states
+  submissions        Submission[]
+  problems           Problem[] // Problems created by instructor
+  achievements       UserAchievement[]
+  bktStates          BKTState[] // BKT (Bayesian Knowledge Tracing) states
+  instructorClasses  Class[]           @relation("InstructorClasses")
+  enrollments        ClassEnrollment[] @relation("StudentEnrollments")
 
   @@map("users")
 }
@@ -53,10 +55,11 @@ model Problem {
   updatedAt           DateTime @updatedAt
 
   // Relations
-  createdBy   String?
-  creator     User?        @relation(fields: [createdBy], references: [id])
-  testCases   TestCase[]
-  submissions Submission[]
+  createdBy       String?
+  creator         User?            @relation(fields: [createdBy], references: [id])
+  testCases       TestCase[]
+  submissions     Submission[]
+  problemSetItems ProblemSetItem[]
 
   @@map("problems")
 }
@@ -210,4 +213,66 @@ model BKTState {
   kc          KnowledgeComponent @relation(fields: [kcId], references: [id])
 
   @@unique([userId, kcId])
+}
+
+model Class {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  semester    String? // "Fall 2025", "Spring 2026"
+  code        String?  @unique // Class code for easy enrollment: "CS101-F25"
+  
+  instructorId String
+  instructor   User    @relation("InstructorClasses", fields: [instructorId], references: [id], onDelete: Cascade)
+  
+  enrollments  ClassEnrollment[]
+  problemSets  ProblemSet[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("classes")
+}
+
+model ClassEnrollment {
+  id        String   @id @default(uuid())
+  classId   String
+  studentId String
+  
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student   User     @relation("StudentEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
+  
+  enrolledAt DateTime @default(now())
+  
+  @@unique([classId, studentId])
+  @@map("class_enrollments")
+}
+
+model ProblemSet {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  
+  classId     String?
+  class       Class?   @relation(fields: [classId], references: [id], onDelete: SetNull)
+  
+  problems    ProblemSetItem[]
+  
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+  
+  @@map("problem_sets")
+}
+
+model ProblemSetItem {
+  id            String      @id @default(uuid())
+  problemSetId  String
+  problemId     String
+  order         Int
+  
+  problemSet    ProblemSet  @relation(fields: [problemSetId], references: [id], onDelete: Cascade)
+  problem       Problem     @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  
+  @@unique([problemSetId, problemId])
+  @@map("problem_set_items")
 }
