@@ -69,8 +69,8 @@ export interface SubmissionError {
   surfaceError: string
   cognitiveCause: string
   bloomLevel: string
-  suggestion: string
-  errorPattern: string
+  suggestion: string  // Maps to reasoning in DB
+  errorPattern: string  // Maps to specificError in DB
 }
 
 export interface UserStats {

@@ -292,8 +292,8 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
                 surfaceError: true,
                 cognitiveCause: true,
                 bloomLevel: true,
-                suggestion: true,
-                errorPattern: true
+                reasoning: true,
+                specificError: true
               }
             }
           }
@@ -302,11 +302,11 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
         if (submissionError && submissionError.signature) {
           errorClassification = {
             id: submissionError.id,
-            surfaceError: submissionError.signature.surfaceError,
-            cognitiveCause: submissionError.signature.cognitiveCause,
-            bloomLevel: submissionError.signature.bloomLevel,
-            suggestion: submissionError.signature.suggestion,
-            errorPattern: submissionError.signature.errorPattern
+            surfaceError: submissionError.signature.surfaceError || '',
+            cognitiveCause: submissionError.signature.cognitiveCause || '',
+            bloomLevel: submissionError.signature.bloomLevel || '',
+            suggestion: submissionError.signature.reasoning || '',
+            errorPattern: submissionError.signature.specificError || ''
           };
         }
       } catch (e) {
