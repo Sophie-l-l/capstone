@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import type { Problem, TestCase } from "@/lib/types"
 import { Plus, Trash2, ArrowLeft, ArrowRight, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { apiClient } from "@/lib/api"
 
 const defaultTopics = [
   "Array",
@@ -50,6 +51,7 @@ export default function CreateProblemPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [step, setStep] = useState(1)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [title, setTitle] = useState("")
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("easy")
@@ -125,30 +127,48 @@ export default function CreateProblemPage() {
     }
   }
 
-  const handleSubmit = () => {
-    const newProblem: Partial<Problem> = {
-      id: Math.random().toString(36).substr(2, 9),
-      title,
-      difficulty,
-      topics: selectedTopics,
-      knowledgeComponents: selectedKCs,
-      description,
-      inputFormat,
-      outputFormat,
-      constraints: constraints.filter((c) => c.trim() !== ""),
-      examples: testCases,
-      timeLimit: Number.parseInt(timeLimit),
-      memoryLimit: Number.parseInt(memoryLimit),
-      acceptanceRate: 0,
-      totalSubmissions: 0,
+  const handleSubmit = async () => {
+    setIsSubmitting(true)
+    
+    try {
+      const problemData = {
+        title,
+        difficulty,
+        description,
+        inputFormat,
+        outputFormat,
+        timeLimit: Number.parseInt(timeLimit),
+        memoryLimit: Number.parseInt(memoryLimit),
+        topics: selectedTopics,
+        knowledgeComponents: selectedKCs,
+        constraints: constraints.filter((c) => c.trim() !== ""),
+        testCases: testCases.map(tc => ({
+          input: tc.input,
+          output: tc.output,
+          explanation: tc.explanation || "",
+          isHidden: tc.isHidden || false,
+          points: tc.points || 10
+        }))
+      }
+
+      const response = await apiClient.createProblem(problemData)
+
+      toast({
+        title: "Problem Created!",
+        description: `${title} has been successfully created and is now visible to all students.`,
+      })
+
+      router.push("/problems")
+    } catch (error: any) {
+      console.error("Error creating problem:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create problem. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
     }
-
-    toast({
-      title: "Problem Created!",
-      description: `${title} has been successfully created.`,
-    })
-
-    router.push("/problems")
   }
 
   const canProceed = () => {
@@ -499,9 +519,9 @@ export default function CreateProblemPage() {
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               ) : (
-                <Button onClick={handleSubmit} disabled={!canProceed()}>
+                <Button onClick={handleSubmit} disabled={!canProceed() || isSubmitting}>
                   <Save className="h-4 w-4 mr-2" />
-                  Create Problem
+                  {isSubmitting ? "Creating..." : "Create Problem"}
                 </Button>
               )}
             </div>
