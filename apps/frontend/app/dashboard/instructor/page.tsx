@@ -5,12 +5,27 @@ import { useAuth } from "@/lib/auth-context"
 import { ProtectedRoute } from "@/components/protected-route"
 import { DashboardNav } from "@/components/dashboard-nav"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, BookOpen, TrendingUp, AlertCircle, Award, Clock, Brain, Target, PieChart } from "lucide-react"
-import Link from "next/link"
-import { apiClient } from "@/lib/api"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { Users, BookOpen, TrendingUp, AlertCircle, Brain, Target, BarChart3 } from "lucide-react"
+import { apiClient } from "@/lib/api"
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+  ScatterChart,
+  Scatter,
+  ZAxis
+} from "recharts"
 
 interface ClassData {
   id: string
@@ -23,28 +38,34 @@ interface ClassData {
   }
 }
 
+interface StudentStats {
+  studentId: string
+  name: string
+  email: string
+  totalSubmissions: number
+  acceptedSubmissions: number
+  acceptanceRate: number
+  avgMastery: number
+  isAtRisk: boolean
+}
+
+interface KCStats {
+  kc: string
+  avgMastery: number
+  studentCount: number
+}
+
 interface ClassAnalytics {
-  studentStats: Array<{
-    studentId: string
-    name: string
-    email: string
-    totalSubmissions: number
-    acceptedSubmissions: number
-    acceptanceRate: number
-    avgMastery: number
-    isAtRisk: boolean
-  }>
-  kcStats: Array<{
-    kc: string
-    avgMastery: number
-    studentCount: number
-  }>
+  studentStats: StudentStats[]
+  kcStats: KCStats[]
   summary: {
     totalStudents: number
     totalSubmissions: number
     atRiskStudents: number
   }
 }
+
+const COLORS = ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#6366F1']
 
 export default function InstructorDashboardPage() {
   const { user } = useAuth()
@@ -90,6 +111,54 @@ export default function InstructorDashboardPage() {
     }
   }
 
+  // Performance clustering
+  const performanceClusters = analytics ? [
+    {
+      name: 'High Performers',
+      count: analytics.studentStats.filter(s => s.acceptanceRate >= 0.7 && s.avgMastery >= 0.6).length,
+      color: '#10B981',
+      criteria: '≥70% acceptance, ≥60% mastery'
+    },
+    {
+      name: 'Average Performers',
+      count: analytics.studentStats.filter(s => s.acceptanceRate >= 0.4 && s.acceptanceRate < 0.7).length,
+      color: '#F59E0B',
+      criteria: '40-70% acceptance'
+    },
+    {
+      name: 'Struggling Students',
+      count: analytics.studentStats.filter(s => s.acceptanceRate < 0.4 || s.avgMastery < 0.4).length,
+      color: '#EF4444',
+      criteria: '<40% acceptance or mastery'
+    }
+  ] : []
+
+  // Submission distribution
+  const submissionDistribution = analytics ? analytics.studentStats.map(s => ({
+    name: s.name.split(' ')[0],
+    submissions: s.totalSubmissions,
+    accepted: s.acceptedSubmissions,
+    rate: Math.round(s.acceptanceRate * 100)
+  })).sort((a, b) => b.submissions - a.submissions) : []
+
+  // KC mastery distribution
+  const kcMasteryData = analytics ? analytics.kcStats
+    .map(kc => ({
+      kc: kc.kc,
+      mastery: Math.round(kc.avgMastery * 100),
+      students: kc.studentCount
+    }))
+    .sort((a, b) => a.mastery - b.mastery)
+    .slice(0, 10) : []
+
+  // Performance scatter (submissions vs acceptance rate)
+  const performanceScatter = analytics ? analytics.studentStats.map(s => ({
+    name: s.name,
+    submissions: s.totalSubmissions,
+    acceptance: Math.round(s.acceptanceRate * 100),
+    mastery: Math.round(s.avgMastery * 100)
+  })) : []
+
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={["instructor"]}>
@@ -107,463 +176,340 @@ export default function InstructorDashboardPage() {
 
   const selectedClassData = classes.find(c => c.id === selectedClass)
   const totalStudents = classes.reduce((sum, c) => sum + (c._count?.enrollments || 0), 0)
+  const classAvgAcceptance = analytics?.studentStats.length
+    ? Math.round((analytics.studentStats.reduce((sum, s) => sum + s.acceptanceRate, 0) / analytics.studentStats.length) * 100)
+    : 0
 
   return (
     <ProtectedRoute allowedRoles={["instructor"]}>
       <div className="min-h-screen bg-background">
         <DashboardNav />
-        <main className="container py-8">
-          <div className="space-y-8">
-            {/* Header */}
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Instructor Dashboard
-              </h1>
-              <p className="text-muted-foreground mt-2">
-                Welcome back, {user?.name || 'Instructor'}
-              </p>
-            </div>
+        <main className="container py-8 space-y-8">
+          {/* Header */}
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Class Analytics Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              Comprehensive insights and performance clustering
+            </p>
+          </div>
 
-            {/* Overview Stats */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Classes</CardTitle>
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{classes.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Current semester
-                  </p>
-                </CardContent>
-              </Card>
+          {/* Overview Stats */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Classes</CardTitle>
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{classes.length}</div>
+                <p className="text-xs text-muted-foreground">Current semester</p>
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalStudents}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Across all classes
-                  </p>
-                </CardContent>
-              </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics?.summary.totalStudents || 0}</div>
+                <p className="text-xs text-muted-foreground">In selected class</p>
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Completion</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {analytics ? `${Math.round((analytics.summary.totalSubmissions / (analytics.summary.totalStudents || 1)))}` : '--'}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Submissions per student
-                  </p>
-                </CardContent>
-              </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics?.summary.totalSubmissions || 0}</div>
+                <p className="text-xs text-muted-foreground">Class average: {classAvgAcceptance}%</p>
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">At-Risk Students</CardTitle>
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-destructive">
-                    {analytics?.summary.atRiskStudents || 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Need attention
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">At-Risk Students</CardTitle>
+                <AlertCircle className="h-4 w-4 text-destructive" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-destructive">
+                  {analytics?.summary.atRiskStudents || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">Need intervention</p>
+              </CardContent>
+            </Card>
+          </div>
 
-            {/* Class Tabs and Analytics */}
-            {classes.length > 0 && (
-              <Tabs value={selectedClass || undefined} onValueChange={setSelectedClass}>
-                <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${Math.min(classes.length, 4)}, 1fr)` }}>
-                  {classes.map((cls) => (
-                    <TabsTrigger key={cls.id} value={cls.id}>
-                      {cls.code}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-
+          {/* Class Selection */}
+          {classes.length > 0 && (
+            <Tabs value={selectedClass || undefined} onValueChange={setSelectedClass}>
+              <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${Math.min(classes.length, 4)}, 1fr)` }}>
                 {classes.map((cls) => (
-                  <TabsContent key={cls.id} value={cls.id} className="space-y-6">
-                    {analyticsLoading ? (
-                      <div className="flex items-center justify-center h-32">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                      </div>
-                    ) : analytics ? (
-                      <>
-                        {/* Class Summary */}
-                        <div className="grid gap-4 md:grid-cols-3">
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-base">Class Overview</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Students:</span>
-                                <span className="font-semibold">{analytics.summary.totalStudents}</span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Total Submissions:</span>
-                                <span className="font-semibold">{analytics.summary.totalSubmissions}</span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Avg per Student:</span>
-                                <span className="font-semibold">
-                                  {Math.round(analytics.summary.totalSubmissions / (analytics.summary.totalStudents || 1))}
-                                </span>
-                              </div>
-                            </CardContent>
-                          </Card>
+                  <TabsTrigger key={cls.id} value={cls.id}>
+                    {cls.code} ({cls._count.enrollments})
+                  </TabsTrigger>
+                ))}
+              </TabsList>
 
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-base flex items-center gap-2">
-                                <Brain className="h-4 w-4" />
-                                Knowledge Mastery
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="text-2xl font-bold">
-                                {analytics.kcStats.length > 0
-                                  ? `${Math.round((analytics.kcStats.reduce((sum, kc) => sum + kc.avgMastery, 0) / analytics.kcStats.length) * 100)}%`
-                                  : 'N/A'}
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Average across all KCs
-                              </p>
-                            </CardContent>
-                          </Card>
-
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-base flex items-center gap-2">
-                                <Target className="h-4 w-4" />
-                                Success Rate
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="text-2xl font-bold">
-                                {analytics.studentStats.length > 0
-                                  ? `${Math.round((analytics.studentStats.reduce((sum, s) => sum + s.acceptanceRate, 0) / analytics.studentStats.length) * 100)}%`
-                                  : 'N/A'}
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Average acceptance rate
-                              </p>
-                            </CardContent>
-                          </Card>
-                        </div>
-
-                        {/* Knowledge Component Mastery */}
-                        {analytics.kcStats.length > 0 && (
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="flex items-center gap-2">
-                                <PieChart className="h-5 w-5" />
-                                Knowledge Component Mastery
-                              </CardTitle>
-                              <CardDescription>
-                                Class-wide understanding of different programming concepts
-                              </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-4">
-                                {analytics.kcStats
-                                  .sort((a, b) => b.avgMastery - a.avgMastery)
-                                  .slice(0, 8)
-                                  .map((kc, index) => (
-                                    <div key={index} className="space-y-2">
-                                      <div className="flex items-center justify-between text-sm">
-                                        <span className="font-medium">{kc.kc}</span>
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-muted-foreground text-xs">
-                                            {kc.studentCount} students
-                                          </span>
-                                          <span className="font-semibold">
-                                            {Math.round(kc.avgMastery * 100)}%
-                                          </span>
-                                        </div>
-                                      </div>
-                                      <Progress value={kc.avgMastery * 100} className="h-2" />
-                                    </div>
-                                  ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-
-                        {/* At-Risk Students */}
-                        {analytics.studentStats.filter(s => s.isAtRisk).length > 0 && (
-                          <Card className="border-destructive/50">
-                            <CardHeader>
-                              <CardTitle className="flex items-center gap-2 text-destructive">
-                                <AlertCircle className="h-5 w-5" />
-                                Students Needing Attention
-                              </CardTitle>
-                              <CardDescription>
-                                Students with low mastery scores and significant activity
-                              </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-3">
-                                {analytics.studentStats
-                                  .filter(s => s.isAtRisk)
-                                  .map((student, index) => (
-                                    <div key={index} className="flex items-center justify-between p-3 rounded-lg border bg-destructive/5">
-                                      <div>
-                                        <p className="font-medium">{student.name}</p>
-                                        <p className="text-sm text-muted-foreground">{student.email}</p>
-                                      </div>
-                                      <div className="text-right">
-                                        <p className="text-sm font-semibold text-destructive">
-                                          {Math.round(student.avgMastery * 100)}% mastery
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                          {student.totalSubmissions} submissions
-                                        </p>
-                                      </div>
-                                    </div>
-                                  ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-
-                        {/* Top Performers */}
+              {classes.map((cls) => (
+                <TabsContent key={cls.id} value={cls.id} className="space-y-6 mt-6">
+                  {analyticsLoading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+                    </div>
+                  ) : !analytics ? (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <p className="text-center text-muted-foreground">No analytics data available</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <>
+                      {/* Performance Clustering */}
+                      <div className="grid gap-6 lg:grid-cols-2">
                         <Card>
                           <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                              <Award className="h-5 w-5 text-yellow-500" />
-                              Top Performers
+                              <Target className="h-5 w-5" />
+                              Performance Clusters
                             </CardTitle>
-                            <CardDescription>
-                              Students demonstrating strong understanding
-                            </CardDescription>
+                            <CardDescription>Student distribution by performance level</CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <div className="space-y-3">
-                              {analytics.studentStats
-                                .sort((a, b) => b.avgMastery - a.avgMastery)
-                                .slice(0, 5)
-                                .map((student, index) => (
-                                  <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
-                                    <div className="flex items-center gap-3">
-                                      <Badge variant="outline" className="h-8 w-8 rounded-full flex items-center justify-center">
-                                        {index + 1}
-                                      </Badge>
-                                      <div>
-                                        <p className="font-medium">{student.name}</p>
-                                        <p className="text-sm text-muted-foreground">{student.email}</p>
-                                      </div>
+                            <div className="space-y-4">
+                              {performanceClusters.map((cluster, idx) => (
+                                <div key={idx} className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cluster.color }} />
+                                      <span className="font-medium">{cluster.name}</span>
                                     </div>
-                                    <div className="text-right">
-                                      <p className="text-sm font-semibold text-green-600">
-                                        {Math.round(student.avgMastery * 100)}% mastery
-                                      </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {student.acceptedSubmissions}/{student.totalSubmissions} accepted
-                                      </p>
-                                    </div>
+                                    <Badge variant="outline">{cluster.count} students</Badge>
                                   </div>
-                                ))}
+                                  <p className="text-xs text-muted-foreground ml-5">{cluster.criteria}</p>
+                                  <Progress 
+                                    value={(cluster.count / (analytics.summary.totalStudents || 1)) * 100} 
+                                    className="h-2"
+                                  />
+                                </div>
+                              ))}
                             </div>
                           </CardContent>
                         </Card>
 
-                        {/* AI Insights */}
-                        <Card className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+                        <Card>
                           <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                              <Brain className="h-5 w-5" />
-                              AI-Generated Insights
+                              <BarChart3 className="h-5 w-5" />
+                              Cluster Distribution
                             </CardTitle>
+                            <CardDescription>Visual breakdown of performance tiers</CardDescription>
                           </CardHeader>
-                          <CardContent className="space-y-3">
-                            {analytics.summary.atRiskStudents > 0 && (
-                              <div className="text-sm">
-                                <p className="font-semibold">⚠️ Attention Needed:</p>
-                                <p className="text-muted-foreground">
-                                  {analytics.summary.atRiskStudents} student(s) showing low mastery despite multiple attempts. 
-                                  Consider scheduling office hours or providing additional resources.
-                                </p>
-                              </div>
-                            )}
-                            {analytics.kcStats.filter(kc => kc.avgMastery < 0.5).length > 0 && (
-                              <div className="text-sm">
-                                <p className="font-semibold">📚 Difficult Topics:</p>
-                                <p className="text-muted-foreground">
-                                  The following concepts show class-wide difficulty: {' '}
-                                  {analytics.kcStats
-                                    .filter(kc => kc.avgMastery < 0.5)
-                                    .map(kc => kc.kc)
-                                    .join(', ')}
-                                  . Consider dedicating extra lecture time to these areas.
-                                </p>
-                              </div>
-                            )}
-                            {analytics.summary.totalSubmissions / (analytics.summary.totalStudents || 1) > 10 && (
-                              <div className="text-sm">
-                                <p className="font-semibold">✅ High Engagement:</p>
-                                <p className="text-muted-foreground">
-                                  Students are highly engaged with an average of{' '}
-                                  {Math.round(analytics.summary.totalSubmissions / (analytics.summary.totalStudents || 1))}{' '}
-                                  submissions per student. Keep up the momentum!
-                                </p>
-                              </div>
-                            )}
+                          <CardContent>
+                            <ResponsiveContainer width="100%" height={200}>
+                              <PieChart>
+                                <Pie
+                                  data={performanceClusters}
+                                  cx="50%"
+                                  cy="50%"
+                                  labelLine={false}
+                                  label={({ name, count }) => `${name}: ${count}`}
+                                  outerRadius={80}
+                                  fill="#8884d8"
+                                  dataKey="count"
+                                >
+                                  {performanceClusters.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                  ))}
+                                </Pie>
+                                <Tooltip />
+                              </PieChart>
+                            </ResponsiveContainer>
                           </CardContent>
                         </Card>
-                      </>
-                    ) : (
+                      </div>
+
+                      {/* Student Submissions Analysis */}
                       <Card>
-                        <CardContent className="py-12 text-center">
-                          <p className="text-muted-foreground">No analytics data available yet</p>
+                        <CardHeader>
+                          <CardTitle>Student Activity & Success Rate</CardTitle>
+                          <CardDescription>Submission volume and acceptance rates per student</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={submissionDistribution}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="name" />
+                              <YAxis yAxisId="left" />
+                              <YAxis yAxisId="right" orientation="right" />
+                              <Tooltip />
+                              <Legend />
+                              <Bar yAxisId="left" dataKey="submissions" fill="#8B5CF6" name="Total Submissions" />
+                              <Bar yAxisId="left" dataKey="accepted" fill="#10B981" name="Accepted" />
+                              <Bar yAxisId="right" dataKey="rate" fill="#F59E0B" name="Acceptance %" />
+                            </BarChart>
+                          </ResponsiveContainer>
                         </CardContent>
                       </Card>
-                    )}
-                  </TabsContent>
-                ))}
-              </Tabs>
-            )}
 
-            {/* Classes List */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Your Classes</h2>
-                <Link 
-                  href="/classes/create" 
-                  className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  Create Class
-                </Link>
-              </div>
+                      {/* Performance Scatter Plot */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Performance Correlation</CardTitle>
+                          <CardDescription>Submissions vs Acceptance Rate (bubble size = mastery)</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <ResponsiveContainer width="100%" height={300}>
+                            <ScatterChart>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis type="number" dataKey="submissions" name="Submissions" />
+                              <YAxis type="number" dataKey="acceptance" name="Acceptance %" />
+                              <ZAxis type="number" dataKey="mastery" range={[100, 1000]} />
+                              <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                              <Scatter name="Students" data={performanceScatter} fill="#8B5CF6" />
+                            </ScatterChart>
+                          </ResponsiveContainer>
+                        </CardContent>
+                      </Card>
 
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {classes.map((classData) => (
-                  <Card key={classData.id} className="hover:border-primary transition-colors">
-                    <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        <span className="text-lg">{classData.name}</span>
-                        <BookOpen className="h-5 w-5 text-primary" />
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {classData.code} • {classData.semester}
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">Students</span>
+                      {/* Knowledge Component Mastery */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Brain className="h-5 w-5" />
+                            Knowledge Component Mastery
+                          </CardTitle>
+                          <CardDescription>Average class mastery across topics (weakest first)</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <ResponsiveContainer width="100%" height={400}>
+                            <BarChart data={kcMasteryData} layout="vertical">
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis type="number" domain={[0, 100]} />
+                              <YAxis dataKey="kc" type="category" width={120} />
+                              <Tooltip />
+                              <Legend />
+                              <Bar dataKey="mastery" fill="#8B5CF6" name="Avg Mastery %" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </CardContent>
+                      </Card>
+
+                      {/* Student Details Table */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Detailed Student Performance</CardTitle>
+                          <CardDescription>Individual metrics and status</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="overflow-x-auto">
+                            <table className="w-full">
+                              <thead>
+                                <tr className="border-b">
+                                  <th className="text-left p-2">Student</th>
+                                  <th className="text-right p-2">Submissions</th>
+                                  <th className="text-right p-2">Accepted</th>
+                                  <th className="text-right p-2">Rate</th>
+                                  <th className="text-right p-2">Avg Mastery</th>
+                                  <th className="text-center p-2">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {analytics.studentStats
+                                  .sort((a, b) => b.totalSubmissions - a.totalSubmissions)
+                                  .map((student) => (
+                                    <tr key={student.studentId} className="border-b hover:bg-muted/50">
+                                      <td className="p-2">
+                                        <div>
+                                          <div className="font-medium">{student.name}</div>
+                                          <div className="text-xs text-muted-foreground">{student.email}</div>
+                                        </div>
+                                      </td>
+                                      <td className="text-right p-2">{student.totalSubmissions}</td>
+                                      <td className="text-right p-2">{student.acceptedSubmissions}</td>
+                                      <td className="text-right p-2">{Math.round(student.acceptanceRate * 100)}%</td>
+                                      <td className="text-right p-2">{Math.round(student.avgMastery * 100)}%</td>
+                                      <td className="text-center p-2">
+                                        {student.isAtRisk ? (
+                                          <Badge variant="destructive">At Risk</Badge>
+                                        ) : student.acceptanceRate >= 0.7 ? (
+                                          <Badge variant="default">Excelling</Badge>
+                                        ) : (
+                                          <Badge variant="secondary">On Track</Badge>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                              </tbody>
+                            </table>
                           </div>
-                          <span className="font-semibold">{classData._count?.enrollments || 0}</span>
-                        </div>
+                        </CardContent>
+                      </Card>
 
-                        <div className="flex gap-2">
-                          <Link
-                            href={`/classes/${classData.id}`}
-                            className="flex-1 inline-flex items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                          >
-                            View Class
-                          </Link>
-                          <Link
-                            href={`/classes/${classData.id}/students`}
-                            className="flex-1 inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-xs font-medium hover:bg-accent hover:text-accent-foreground"
-                          >
-                            Students
-                          </Link>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      {/* AI Insights */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Brain className="h-5 w-5" />
+                            AI-Generated Insights
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {analytics.summary.atRiskStudents > 0 && (
+                            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                              <p className="text-sm">
+                                <strong>⚠️ Attention Needed:</strong> {analytics.summary.atRiskStudents} student(s) showing signs of struggle 
+                                (low acceptance rate or mastery). Consider scheduling one-on-one sessions.
+                              </p>
+                            </div>
+                          )}
+                          
+                          {kcMasteryData.length > 0 && kcMasteryData[0].mastery < 30 && (
+                            <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                              <p className="text-sm">
+                                <strong>📚 Topic Focus:</strong> The class is struggling with "{kcMasteryData[0].kc}" 
+                                (avg {kcMasteryData[0].mastery}% mastery). Consider dedicating more time to this topic.
+                              </p>
+                            </div>
+                          )}
 
-                {classes.length === 0 && (
-                  <Card className="md:col-span-2 lg:col-span-3">
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">No classes yet</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Create your first class to get started
-                      </p>
-                      <Link
-                        href="/classes/create"
-                        className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                      >
-                        Create Class
-                      </Link>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
+                          {classAvgAcceptance >= 70 && (
+                            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                              <p className="text-sm">
+                                <strong>🎉 Great Work:</strong> Class average acceptance rate is {classAvgAcceptance}%! 
+                                Students are performing well overall.
+                              </p>
+                            </div>
+                          )}
 
-            {/* Quick Actions */}
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold">Quick Actions</h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Link href="/problems/create">
-                  <Card className="hover:border-primary transition-colors cursor-pointer">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Award className="h-5 w-5 text-primary" />
-                        Create Problem
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">
-                        Add new coding problems for your students
-                      </p>
-                    </CardContent>
-                  </Card>
-                </Link>
+                          {analytics.summary.totalSubmissions / (analytics.summary.totalStudents || 1) > 50 && (
+                            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                              <p className="text-sm">
+                                <strong>💪 High Engagement:</strong> Students are very active with an average of{' '}
+                                {Math.round(analytics.summary.totalSubmissions / (analytics.summary.totalStudents || 1))} submissions per student!
+                              </p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
+                </TabsContent>
+              ))}
+            </Tabs>
+          )}
 
-                <Link href="/metrics/instructor">
-                  <Card className="hover:border-primary transition-colors cursor-pointer">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <TrendingUp className="h-5 w-5 text-primary" />
-                        View Analytics
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">
-                        Analyze student performance and progress
-                      </p>
-                    </CardContent>
-                  </Card>
-                </Link>
-
-                <Link href="/problems">
-                  <Card className="hover:border-primary transition-colors cursor-pointer">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Clock className="h-5 w-5 text-primary" />
-                        Browse Problems
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">
-                        View all available coding problems
-                      </p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </div>
-            </div>
-          </div>
+          {classes.length === 0 && (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-muted-foreground">No classes found. Create a class to get started.</p>
+              </CardContent>
+            </Card>
+          )}
         </main>
       </div>
     </ProtectedRoute>
