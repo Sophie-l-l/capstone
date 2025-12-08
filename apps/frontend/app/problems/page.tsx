@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { ProtectedRoute } from "@/components/protected-route"
 import { DashboardNav } from "@/components/dashboard-nav"
 import { ProblemsTable } from "@/components/problems-table"
@@ -9,9 +10,14 @@ import { BookOpen, Target, TrendingUp } from "lucide-react"
 import { apiClient } from "@/lib/api"
 
 export default function ProblemsPage() {
+  const searchParams = useSearchParams()
+  const assignmentParam = searchParams.get('assignment')
+  
   const [problems, setProblems] = useState<any[]>([])
   const [assignments, setAssignments] = useState<any[]>([])
+  const [assignmentsList, setAssignmentsList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [filteredProblems, setFilteredProblems] = useState<any[]>([])
 
   useEffect(() => {
     // Fetch problems
@@ -30,6 +36,7 @@ export default function ProblemsPage() {
       .then(async (classesData) => {
         const classes = classesData.classes || []
         const assignmentInfos: any[] = []
+        const assignmentList: any[] = []
         
         for (const cls of classes) {
           try {
@@ -38,9 +45,19 @@ export default function ProblemsPage() {
             
             for (const ps of problemSets) {
               const assignmentProblems = ps.problems || []
+              
+              // Add to assignments list for dropdown
+              assignmentList.push({
+                id: ps.id,
+                title: ps.title,
+                className: cls.name,
+                problemIds: assignmentProblems.map((p: any) => p.id)
+              })
+              
               assignmentProblems.forEach((problem: any) => {
                 assignmentInfos.push({
                   problemId: problem.id,
+                  assignmentId: ps.id,
                   assignmentTitle: ps.title,
                   dueDate: ps.dueDate,
                   className: cls.name
@@ -53,6 +70,7 @@ export default function ProblemsPage() {
         }
         
         setAssignments(assignmentInfos)
+        setAssignmentsList(assignmentList)
       })
       .catch(error => {
         console.error('Error fetching assignments:', error)
@@ -74,9 +92,13 @@ export default function ProblemsPage() {
     )
   }
 
-  const easyCount = problems.filter((p) => p.difficulty === "easy").length
-  const mediumCount = problems.filter((p) => p.difficulty === "medium").length
-  const hardCount = problems.filter((p) => p.difficulty === "hard").length
+  const easyCount = filteredProblems.filter((p) => p.difficulty === "easy").length
+  const mediumCount = filteredProblems.filter((p) => p.difficulty === "medium").length
+  const hardCount = filteredProblems.filter((p) => p.difficulty === "hard").length
+  
+  const avgAcceptance = filteredProblems.length > 0 
+    ? (filteredProblems.reduce((acc, p) => acc + (p.acceptanceRate || 0), 0) / filteredProblems.length).toFixed(1)
+    : "0"
 
   return (
     <ProtectedRoute>
@@ -98,8 +120,12 @@ export default function ProblemsPage() {
                   <BookOpen className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{problems.length}</div>
-                  <p className="text-xs text-muted-foreground">Available to solve</p>
+                  <div className="text-2xl font-bold">{filteredProblems.length}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {filteredProblems.length !== problems.length 
+                      ? `Filtered from ${problems.length} total` 
+                      : 'Available to solve'}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -126,16 +152,24 @@ export default function ProblemsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {problems.length > 0 
-                      ? (problems.reduce((acc, p) => acc + (p.acceptanceRate || 0), 0) / problems.length).toFixed(1)
-                      : 0}%
+                    {avgAcceptance}%
                   </div>
-                  <p className="text-xs text-muted-foreground">Across all problems</p>
+                  <p className="text-xs text-muted-foreground">
+                    {filteredProblems.length !== problems.length 
+                      ? 'For filtered problems' 
+                      : 'Across all problems'}
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
-            <ProblemsTable problems={problems} assignments={assignments} />
+            <ProblemsTable 
+              problems={problems} 
+              assignments={assignments}
+              assignmentsList={assignmentsList}
+              initialAssignmentFilter={assignmentParam || undefined}
+              onFilterChange={setFilteredProblems}
+            />
           </div>
         </main>
       </div>

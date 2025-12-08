@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,27 +13,61 @@ import { Search, ArrowUpDown, Calendar, BookOpen } from "lucide-react"
 
 interface AssignmentInfo {
   problemId: string
+  assignmentId: string
   assignmentTitle: string
   dueDate: string | null
   className: string
 }
 
+interface AssignmentListItem {
+  id: string
+  title: string
+  className: string
+  problemIds: string[]
+}
+
 interface ProblemsTableProps {
   problems: Problem[]
   assignments?: AssignmentInfo[]
+  assignmentsList?: AssignmentListItem[]
+  initialAssignmentFilter?: string
+  onFilterChange?: (filteredProblems: Problem[]) => void
 }
 
-export function ProblemsTable({ problems, assignments = [] }: ProblemsTableProps) {
+export function ProblemsTable({ 
+  problems, 
+  assignments = [], 
+  assignmentsList = [],
+  initialAssignmentFilter,
+  onFilterChange 
+}: ProblemsTableProps) {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all")
   const [topicFilter, setTopicFilter] = useState<string>("all")
+  const [assignmentFilter, setAssignmentFilter] = useState<string>(initialAssignmentFilter || "all")
   const [sortBy, setSortBy] = useState<"title" | "difficulty" | "acceptance">("title")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
 
   const allTopics = Array.from(new Set(problems.flatMap((p) => p.topics)))
 
+  // Get problem IDs for selected assignment
+  const assignmentProblemIds = assignmentFilter !== "all" 
+    ? assignmentsList.find(a => a.id === assignmentFilter)?.problemIds || []
+    : []
+
   const getAssignmentInfo = (problemId: string): AssignmentInfo | undefined => {
     return assignments.find(a => a.problemId === problemId)
+  }
+  
+  const handleAssignmentFilterChange = (value: string) => {
+    setAssignmentFilter(value)
+    // Update URL without page reload
+    if (value === "all") {
+      router.push('/problems')
+    } else {
+      router.push(`/problems?assignment=${value}`)
+    }
   }
 
   const formatDueDate = (dueDate: string | null) => {
@@ -56,7 +91,8 @@ export function ProblemsTable({ problems, assignments = [] }: ProblemsTableProps
         problem.topics.some((topic) => topic.toLowerCase().includes(searchQuery.toLowerCase()))
       const matchesDifficulty = difficultyFilter === "all" || problem.difficulty === difficultyFilter
       const matchesTopic = topicFilter === "all" || problem.topics.includes(topicFilter)
-      return matchesSearch && matchesDifficulty && matchesTopic
+      const matchesAssignment = assignmentFilter === "all" || assignmentProblemIds.includes(problem.id)
+      return matchesSearch && matchesDifficulty && matchesTopic && matchesAssignment
     })
     .sort((a, b) => {
       let comparison = 0
@@ -70,6 +106,13 @@ export function ProblemsTable({ problems, assignments = [] }: ProblemsTableProps
       }
       return sortOrder === "asc" ? comparison : -comparison
     })
+  
+  // Notify parent of filtered results
+  useEffect(() => {
+    if (onFilterChange) {
+      onFilterChange(filteredProblems)
+    }
+  }, [filteredProblems.length, onFilterChange])
 
   const getDifficultyColor = (difficulty: Problem["difficulty"]) => {
     switch (difficulty) {
@@ -103,6 +146,21 @@ export function ProblemsTable({ problems, assignments = [] }: ProblemsTableProps
             className="pl-10"
           />
         </div>
+        {assignmentsList.length > 0 && (
+          <Select value={assignmentFilter} onValueChange={handleAssignmentFilterChange}>
+            <SelectTrigger className="w-full sm:w-[220px]">
+              <SelectValue placeholder="Assignment" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Assignments</SelectItem>
+              {assignmentsList.map((assignment) => (
+                <SelectItem key={assignment.id} value={assignment.id}>
+                  {assignment.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Difficulty" />
