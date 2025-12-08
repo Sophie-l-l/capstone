@@ -214,6 +214,7 @@ export default function SubmissionDetailPage({ params }: { params: Promise<{ id:
           <CodeEditor value={code} onChange={setCode} language={data.language || "plaintext"} readOnly />
         </div>
       </div>
+    </div>
     </ProtectedRoute>
   )
 }

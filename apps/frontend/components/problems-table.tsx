@@ -176,20 +176,6 @@ export function ProblemsTable({ problems }: ProblemsTableProps) {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">{problem.acceptanceRate}%</TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {problem.knowledgeComponents?.slice(0, 2).map((kc: string) => (
-                        <Badge key={kc} variant="secondary" className="text-xs">
-                          {kc.replace(/_/g, ' ')}
-                        </Badge>
-                      ))}
-                      {problem.knowledgeComponents?.length > 2 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{problem.knowledgeComponents.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">{problem.acceptanceRate}%</TableCell>
                 </TableRow>
               ))
             )}
