@@ -44,7 +44,6 @@ export function DashboardNav() {
     { href: "/classes", label: "Classes", icon: Users },
     { href: "/problems", label: "Problems", icon: BookOpen },
     { href: "/create-problem", label: "Create Problem", icon: PlusCircle },
-    { href: "/students", label: "Students", icon: Users },
     { href: "/profile", label: "Profile", icon: User },
   ]
 
