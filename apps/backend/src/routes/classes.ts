@@ -135,7 +135,7 @@ router.get("/:id", authenticateToken, async (req: Request, res: Response) => {
 
     // Check authorization
     const isInstructor = classData.instructorId === userId;
-    const isEnrolled = classData.enrollments.some(e => e.studentId === userId);
+    const isEnrolled = classData.enrollments.some((e: any) => e.studentId === userId);
 
     if (!isInstructor && !isEnrolled) {
       return res.status(403).json({ message: "Access denied" });
@@ -183,8 +183,8 @@ router.post("/:id/enroll", authenticateToken, async (req: Request, res: Response
 
     const enrollment = await prisma.classEnrollment.create({
       data: {
-        classId: id,
-        studentId: userId
+        classId: id as string,
+        studentId: userId as string
       }
     });
 

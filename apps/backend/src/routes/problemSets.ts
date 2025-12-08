@@ -34,7 +34,7 @@ router.get("/class/:classId", authenticateToken, async (req: Request, res: Respo
     }
 
     const problemSets = await prisma.problemSet.findMany({
-      where: { classId },
+      where: { classId: classId as string },
       include: {
         problems: {
           include: {
@@ -131,7 +131,7 @@ router.get("/:id", authenticateToken, async (req: Request, res: Response) => {
     const userId = (req as any).user.userId;
 
     const problemSet = await prisma.problemSet.findUnique({
-      where: { id },
+      where: { id: id as string },
       include: {
         class: {
           include: {
@@ -183,7 +183,7 @@ router.post("/:id/problems", authenticateToken, async (req: Request, res: Respon
     }
 
     const problemSet = await prisma.problemSet.findUnique({
-      where: { id },
+      where: { id: id as string },
       include: {
         class: true,
         problems: true
@@ -199,12 +199,12 @@ router.post("/:id/problems", authenticateToken, async (req: Request, res: Respon
     }
 
     // Get next order number
-    const maxOrder = problemSet.problems.reduce((max, p) => Math.max(max, p.order), -1);
+    const maxOrder = problemSet.problems.reduce((max: number, p: any) => Math.max(max, p.order), -1);
 
     const item = await prisma.problemSetItem.create({
       data: {
-        problemSetId: id,
-        problemId,
+        problemSetId: id as string,
+        problemId: problemId as string,
         order: maxOrder + 1
       },
       include: {
