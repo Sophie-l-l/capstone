@@ -86,13 +86,15 @@ export default function InstructorClassesPage() {
               </TabsContent>
 
               <TabsContent value="assignments" className="space-y-6 mt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">Create Assignment</h2>
-                    <p className="text-muted-foreground">Assign problems to your students</p>
-                  </div>
-                  <AssignmentCreation onAssignmentCreated={fetchClasses} />
-                </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Create Assignment</CardTitle>
+                    <CardDescription>Assign problems to your students</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <AssignmentCreation onAssignmentCreated={fetchClasses} />
+                  </CardContent>
+                </Card>
               </TabsContent>
             </Tabs>
           </div>
