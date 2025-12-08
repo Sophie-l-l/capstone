@@ -450,9 +450,6 @@ export default function StudentDashboardPage() {
             </Card>
           </div>
 
-          {/* My Assignments Widget */}
-          <MyAssignments assignments={assignments} loading={assignmentsLoading} />
-
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
@@ -665,16 +662,11 @@ export default function StudentDashboardPage() {
                   
                   return (
                     <ResponsiveContainer width="95%" height="95%">
-                      <BarChart data={dataWithColors} margin={{ top: 30, right: 15, left: 5, bottom: 50 }}>
+                      <BarChart data={dataWithColors} margin={{ top: 30, right: 15, left: 5, bottom: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                         <XAxis 
                           dataKey="label" 
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                          interval={0}
-                          tick={{ fontSize: 10, fill: '#6B7280' }}
-                          tickLine={{ stroke: '#E5E7EB' }}
+                          hide={true}
                         />
                         <YAxis 
                           tick={{ fontSize: 11, fill: '#6B7280' }}

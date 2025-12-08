@@ -544,7 +544,7 @@ export default function StudentDashboardPage() {
                   
                   return (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={errorData.topErrors} margin={{ top: 20, right: 30, left: 10, bottom: 80 }}>
+                      <BarChart data={errorData.topErrors} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
                         <defs>
                           <linearGradient id="colorError" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#EF4444" stopOpacity={0.8}/>
@@ -554,13 +554,7 @@ export default function StudentDashboardPage() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                         <XAxis 
                           dataKey="label" 
-                          angle={-45} 
-                          textAnchor="end" 
-                          height={90}
-                          interval={0}
-                          tick={{ fontSize: 10, fill: '#6B7280' }}
-                          tickLine={{ stroke: '#E5E7EB' }}
-                          tickMargin={8}
+                          hide={true}
                         />
                         <YAxis 
                           tick={{ fontSize: 11, fill: '#6B7280' }}
