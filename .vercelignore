@@ -1,0 +1,29 @@
+# Large data files
+apps/backend/prisma/data/*.jsonl
+apps/backend/prisma/data/*.gz
+apps/backend/prisma/data/*.zip
+!apps/backend/prisma/data/sample-200.jsonl
+!apps/backend/prisma/data/test-5.jsonl
+
+# Backend service (deployed separately on GCP)
+apps/backend/
+
+# AI service (deployed separately on GCP)
+apps/ai-service/
+
+# Docker files
+*.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+# Cloud deployment files
+cloudbuild*.yaml
+cloud-sql-proxy
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore

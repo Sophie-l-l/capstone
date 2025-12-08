@@ -45,6 +45,13 @@ logs
 *.sqlite
 *.sqlite3
 
+# Large data files
+apps/backend/prisma/data/*.jsonl
+apps/backend/prisma/data/*.gz
+apps/backend/prisma/data/*.zip
+!apps/backend/prisma/data/sample-200.jsonl
+!apps/backend/prisma/data/test-5.jsonl
+
 # OS generated files
 .DS_Store
 .DS_Store?
