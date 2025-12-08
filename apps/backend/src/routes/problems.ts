@@ -179,6 +179,24 @@ router.post("/", authenticateToken, async (req: Request, res: Response) => {
       return res.status(400).json({ message: "At least one test case is required" });
     }
 
+    // Ensure all knowledge components exist in the KnowledgeComponent table
+    // This syncs Problem.knowledgeComponents (string[]) with KnowledgeComponent table
+    if (knowledgeComponents && Array.isArray(knowledgeComponents)) {
+      for (const kcName of knowledgeComponents) {
+        if (!kcName || typeof kcName !== 'string') continue;
+        
+        // Check if KC exists, create if it doesn't
+        await prisma.knowledgeComponent.upsert({
+          where: { name: kcName },
+          update: {}, // No update needed if exists
+          create: {
+            name: kcName,
+            description: `Knowledge component: ${kcName}`
+          }
+        });
+      }
+    }
+
     // Create problem with test cases
     const userId = (req as any).user.userId; // Get instructor's user ID
     
