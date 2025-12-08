@@ -1,16 +1,47 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { DashboardNav } from "@/components/dashboard-nav"
 import { ProblemsTable } from "@/components/problems-table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { mockProblems } from "@/lib/mock-data"
 import { BookOpen, Target, TrendingUp } from "lucide-react"
+import { apiClient } from "@/lib/api"
 
 export default function ProblemsPage() {
-  const easyCount = mockProblems.filter((p) => p.difficulty === "easy").length
-  const mediumCount = mockProblems.filter((p) => p.difficulty === "medium").length
-  const hardCount = mockProblems.filter((p) => p.difficulty === "hard").length
+  const [problems, setProblems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    apiClient.getProblems({ limit: 100 })
+      .then(data => {
+        setProblems(data.problems || [])
+        setLoading(false)
+      })
+      .catch(error => {
+        console.error('Error fetching problems:', error)
+        setLoading(false)
+      })
+  }, [])
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-background">
+          <DashboardNav />
+          <main className="container py-8">
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+            </div>
+          </main>
+        </div>
+      </ProtectedRoute>
+    )
+  }
+
+  const easyCount = problems.filter((p) => p.difficulty === "easy").length
+  const mediumCount = problems.filter((p) => p.difficulty === "medium").length
+  const hardCount = problems.filter((p) => p.difficulty === "hard").length
 
   return (
     <ProtectedRoute>
@@ -32,7 +63,7 @@ export default function ProblemsPage() {
                   <BookOpen className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{mockProblems.length}</div>
+                  <div className="text-2xl font-bold">{problems.length}</div>
                   <p className="text-xs text-muted-foreground">Available to solve</p>
                 </CardContent>
               </Card>
@@ -60,14 +91,16 @@ export default function ProblemsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {(mockProblems.reduce((acc, p) => acc + p.acceptanceRate, 0) / mockProblems.length).toFixed(1)}%
+                    {problems.length > 0 
+                      ? (problems.reduce((acc, p) => acc + (p.acceptanceRate || 0), 0) / problems.length).toFixed(1)
+                      : 0}%
                   </div>
                   <p className="text-xs text-muted-foreground">Across all problems</p>
                 </CardContent>
               </Card>
             </div>
 
-            <ProblemsTable problems={mockProblems} />
+            <ProblemsTable problems={problems} />
           </div>
         </main>
       </div>
