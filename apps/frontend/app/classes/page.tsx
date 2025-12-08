@@ -50,13 +50,14 @@ export default function ClassesPage() {
 
   const fetchClasses = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("educode_token");
       if (!token) {
         router.push("/login");
         return;
       }
 
-      const response = await fetch("http://localhost:8000/api/instructor/classes", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/instructor/classes`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -86,13 +87,14 @@ export default function ClassesPage() {
     setIsCreating(true);
 
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("educode_token");
       if (!token) {
         router.push("/login");
         return;
       }
 
-      const response = await fetch("http://localhost:8000/api/instructor/classes", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_URL}/api/instructor/classes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
