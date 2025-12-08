@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { ProtectedRoute } from "@/components/protected-route"
 import { DashboardNav } from "@/components/dashboard-nav"
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BookOpen, Target, TrendingUp } from "lucide-react"
 import { apiClient } from "@/lib/api"
 
-export default function ProblemsPage() {
+function ProblemsPageContent() {
   const searchParams = useSearchParams()
   const assignmentParam = searchParams.get('assignment')
   
@@ -174,5 +174,24 @@ export default function ProblemsPage() {
         </main>
       </div>
     </ProtectedRoute>
+  )
+}
+
+export default function ProblemsPage() {
+  return (
+    <Suspense fallback={
+      <ProtectedRoute>
+        <div className="min-h-screen bg-background">
+          <DashboardNav />
+          <main className="container py-8">
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+            </div>
+          </main>
+        </div>
+      </ProtectedRoute>
+    }>
+      <ProblemsPageContent />
+    </Suspense>
   )
 }
