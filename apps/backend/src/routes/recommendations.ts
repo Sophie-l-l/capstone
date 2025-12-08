@@ -76,8 +76,7 @@ router.get("/:userId/recommendations", async (req: Request, res: Response) => {
         title: true,
         difficulty: true,
         topics: true,
-        knowledgeComponents: true,
-        successRate: true
+        knowledgeComponents: true
       }
     });
 
