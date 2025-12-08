@@ -16,7 +16,7 @@ import type { Problem, TestCase } from "@/lib/types"
 import { Plus, Trash2, ArrowLeft, ArrowRight, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-const availableTopics = [
+const defaultTopics = [
   "Array",
   "String",
   "Hash Table",
@@ -33,17 +33,17 @@ const availableTopics = [
   "Recursion",
 ]
 
-const availableKCs = [
-  "For Loops",
-  "Arrays",
-  "Recursion",
-  "Functions",
-  "Conditionals",
-  "Strings",
-  "Sorting",
-  "OOP Basics",
-  "Hash Tables",
-  "Trees",
+const defaultKCs = [
+  "arrays",
+  "hash_maps",
+  "two_pointers",
+  "strings",
+  "stacks",
+  "trees",
+  "dfs",
+  "recursion",
+  "math",
+  "tree_traversal",
 ]
 
 export default function CreateProblemPage() {
@@ -60,6 +60,10 @@ export default function CreateProblemPage() {
   const [memoryLimit, setMemoryLimit] = useState("256")
   const [selectedTopics, setSelectedTopics] = useState<string[]>([])
   const [selectedKCs, setSelectedKCs] = useState<string[]>([])
+  const [customTopic, setCustomTopic] = useState("")
+  const [customKC, setCustomKC] = useState("")
+  const [availableTopics, setAvailableTopics] = useState<string[]>(defaultTopics)
+  const [availableKCs, setAvailableKCs] = useState<string[]>(defaultKCs)
   const [constraints, setConstraints] = useState<string[]>([""])
   const [testCases, setTestCases] = useState<TestCase[]>([
     { input: "", output: "", explanation: "", isHidden: false, points: 10 },
@@ -101,6 +105,24 @@ export default function CreateProblemPage() {
 
   const toggleKC = (kc: string) => {
     setSelectedKCs((prev) => (prev.includes(kc) ? prev.filter((k) => k !== kc) : [...prev, kc]))
+  }
+
+  const addCustomTopic = () => {
+    const trimmed = customTopic.trim()
+    if (trimmed && !availableTopics.includes(trimmed)) {
+      setAvailableTopics([...availableTopics, trimmed])
+      setSelectedTopics([...selectedTopics, trimmed])
+      setCustomTopic("")
+    }
+  }
+
+  const addCustomKC = () => {
+    const trimmed = customKC.trim().toLowerCase().replace(/\s+/g, '_')
+    if (trimmed && !availableKCs.includes(trimmed)) {
+      setAvailableKCs([...availableKCs, trimmed])
+      setSelectedKCs([...selectedKCs, trimmed])
+      setCustomKC("")
+    }
   }
 
   const handleSubmit = () => {
@@ -366,11 +388,27 @@ export default function CreateProblemPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Topics & Knowledge Components</CardTitle>
-                  <CardDescription>Tag the problem with relevant topics and knowledge components</CardDescription>
+                  <CardDescription>
+                    Select topics and knowledge components (KCs) for BKT tracking
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="space-y-2">
-                    <Label>Topics</Label>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Topics</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add custom topic"
+                          value={customTopic}
+                          onChange={(e) => setCustomTopic(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomTopic())}
+                          className="w-48"
+                        />
+                        <Button type="button" variant="outline" size="sm" onClick={addCustomTopic}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {availableTopics.map((topic) => (
                         <Badge
@@ -385,20 +423,37 @@ export default function CreateProblemPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Knowledge Components</Label>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Knowledge Components (for BKT)</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add custom KC (e.g., linked_lists)"
+                          value={customKC}
+                          onChange={(e) => setCustomKC(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomKC())}
+                          className="w-48"
+                        />
+                        <Button type="button" variant="outline" size="sm" onClick={addCustomKC}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {availableKCs.map((kc) => (
                         <Badge
                           key={kc}
-                          variant={selectedKCs.includes(kc) ? "default" : "outline"}
+                          variant={selectedKCs.includes(kc) ? "default" : "secondary"}
                           className="cursor-pointer"
                           onClick={() => toggleKC(kc)}
                         >
-                          {kc}
+                          {kc.replace(/_/g, ' ')}
                         </Badge>
                       ))}
                     </div>
+                    <p className="text-sm text-muted-foreground">
+                      💡 Knowledge Components are tracked by BKT to measure student mastery. Use snake_case format.
+                    </p>
                   </div>
                 </CardContent>
               </Card>

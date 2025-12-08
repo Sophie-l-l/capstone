@@ -47,14 +47,30 @@ type SubmissionDetail = {
   } | null
 }
 
-export default function SubmissionDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params
+export default function SubmissionDetailPage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
+  const [id, setId] = useState<string | null>(null)
   const [data, setData] = useState<SubmissionDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [code, setCode] = useState("")
 
   useEffect(() => {
+    let mounted = true
+    async function resolveParams() {
+      const resolvedParams = await params
+      if (mounted) {
+        setId(resolvedParams.id)
+      }
+    }
+    resolveParams()
+    return () => {
+      mounted = false
+    }
+  }, [params])
+
+  useEffect(() => {
+    if (!id) return
+    
     let mounted = true
     async function load() {
       try {

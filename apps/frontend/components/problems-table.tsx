@@ -120,6 +120,7 @@ export function ProblemsTable({ problems }: ProblemsTableProps) {
                 </Button>
               </TableHead>
               <TableHead>Topics</TableHead>
+              <TableHead>Knowledge Components</TableHead>
               <TableHead className="text-right">
                 <Button variant="ghost" size="sm" onClick={() => toggleSort("acceptance")} className="gap-2">
                   Acceptance
@@ -131,7 +132,7 @@ export function ProblemsTable({ problems }: ProblemsTableProps) {
           <TableBody>
             {filteredProblems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                   No problems found
                 </TableCell>
               </TableRow>
@@ -156,6 +157,34 @@ export function ProblemsTable({ problems }: ProblemsTableProps) {
                       {problem.topics.length > 2 && (
                         <Badge variant="outline" className="text-xs">
                           +{problem.topics.length - 2}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {problem.knowledgeComponents?.slice(0, 2).map((kc: string) => (
+                        <Badge key={kc} variant="secondary" className="text-xs">
+                          {kc.replace(/_/g, ' ')}
+                        </Badge>
+                      ))}
+                      {problem.knowledgeComponents?.length > 2 && (
+                        <Badge variant="secondary" className="text-xs">
+                          +{problem.knowledgeComponents.length - 2}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">{problem.acceptanceRate}%</TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {problem.knowledgeComponents?.slice(0, 2).map((kc: string) => (
+                        <Badge key={kc} variant="secondary" className="text-xs">
+                          {kc.replace(/_/g, ' ')}
+                        </Badge>
+                      ))}
+                      {problem.knowledgeComponents?.length > 2 && (
+                        <Badge variant="secondary" className="text-xs">
+                          +{problem.knowledgeComponents.length - 2}
                         </Badge>
                       )}
                     </div>
