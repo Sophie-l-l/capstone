@@ -1,0 +1,509 @@
+﻿EduCode – An Adaptive Learning Platform for Programming Education
+ABSTRACT
+EduCode is an adaptive programming education platform designed to address a significant limitation in traditional online judges and introductory programming environments: the lack of meaningful, diagnostic feedback on student errors. While most platforms provide only binary outcomes such as Accepted or Wrong Answer, EduCode introduces a multi-layer error classification system that identifies the technical nature of an error, explains the underlying cognitive cause, and estimates its cognitive complexity using Bloom’s Taxonomy. The platform integrates a hybrid classification pipeline—combining deterministic rule-based patterns with a Gemini LLM fallback—to deliver real-time, interpretable error explanations that support deeper student understanding.
+Beyond error analysis, EduCode incorporates Bayesian Knowledge Tracing (BKT) to model student mastery across core programming concepts and generate personalized practice recommendations. The system is implemented using a microservice architecture with a Next.js frontend, Node.js backend, FastAPI AI service, and Docker-based deployment, ensuring scalability and modularity. Through the integration of symbolic reasoning, large language models, and probabilistic learner modeling, EduCode demonstrates that real-time adaptive feedback is both feasible and impactful, offering a foundation for the next generation of intelligent tutoring tools in computer science education.
+
+
+Adaptive Learning; Programming Education; Error Classification; Bayesian Knowledge Tracing (BKT); Large Language Models (LLMs); Rule-Based Reasoning; Intelligent Tutoring Systems; Cognitive Error Analysis; Software Engineering Education; Microservice Architecture; Educational Data Mining; Real-Time Feedback.
+1. Introduction
+1.1 Motivation
+Learning to program is a cognitively demanding process. Students regularly struggle with a wide spectrum of errors—ranging from simple syntax slips to deeper misconceptions and logic flaws. Yet most introductory programming environments rely on static problem sets and provide only minimal feedback. Popular online judges such as LeetCode, Codeforces, or SPOJ typically return only binary outcomes (e.g., Accepted, Wrong Answer) without explaining why a solution failed. As a result, students are left to guess the cause of their mistakes, which can lead to frustration, inefficient learning, and persistent conceptual gaps. EduCode was created to address these challenges. It is an adaptive, AI-powered programming education platform that analyzes student errors in real time, identifies their underlying cognitive causes, models student knowledge over time using Bayesian Knowledge Tracing (BKT), and provides immediate, diagnostic feedback. By combining insights from artificial intelligence with established educational frameworks, EduCode aims to make programming feedback more actionable, personalized, and pedagogically grounded.
+
+
+1.2 Problem Statement
+Existing programming platforms do not provide the kind of detailed, meaningful feedback that students need to improve effectively. They also lack mechanisms for modeling how student understanding evolves across concepts. The central challenge, therefore, is to design a system that can:
+* offer rich, interpretable feedback rather than binary verdicts,
+
+* diagnose the cognitive reasons behind programming mistakes,
+
+* track student mastery of programming skills in real time, and
+
+* adapt learning pathways to the unique needs of each learner.
+
+This project examines how modern AI techniques—combined with structured pedagogical frameworks—can be synthesized into a scalable platform that addresses these gaps.
+
+
+1.3 Research Questions
+This project investigates two primary research directions:
+   1. Hybrid Error Classification:
+ How can deterministic rule-based reasoning and large language models (LLMs) be integrated into a single error-classification pipeline?
+Specifically:
+
+      * Can such a hybrid approach accurately map technical programming errors to deeper cognitive causes?
+
+      * To what extent can the system automatically explain both what went wrong and why it happened?
+
+         2. Adaptive Learning Through BKT:
+ Can Bayesian Knowledge Tracing effectively model a student’s mastery of specific Knowledge Components (KCs)?
+Further:
+
+            * How well can BKT-based estimates inform personalized problem recommendations and improve the overall learning trajectory?
+
+
+2. Background and Related Work
+2.1 Intelligent Tutoring Systems (ITS) and Adaptive Learning
+Intelligent Tutoring Systems are computer systems designed to model a student’s knowledge, skills, and learning style to provide tailored instruction. Modern ITS, especially in the domain of programming, must move beyond simple "correct/incorrect" feedback to offer diagnostic remediation. This project is built upon the core principle of adaptive learning, where the sequence of instructional materials is dynamically adjusted based on continuous performance assessment.
+2.2 Pedagogical Frameworks for Error Analysis
+IEEE Standard 1044-2009 for Software Error Classification
+The IEEE 1044-2009 standard defines software anomaly classification categories (syntax, semantic, logic, runtime). It provides a rigorous, widely accepted taxonomy for classifying software anomalies. In EduCode, this standard is adopted to define the Surface Error layer, categorizing mistakes into technical buckets such as Syntax/Lexical, Semantic/Type, Runtime/Exception, and Functional/Logic errors. This forms the foundational technical layer of error identification.
+Zehetmeier et al. (2015) Cognitive Framework
+To move beyond surface errors, EduCode proposes a cognitive framework explaining why programming errors occur by integrating the cognitive framework proposed by Zehetmeier et al. (2015). This framework helps define the underlying Cognitive Cause of an error, such as MENTAL_TYPO, KNOWLEDGE_GAP, MISCONCEPTION, STRUCTURAL_BLINDNESS, or WRONG_CHOICE. This mapping is crucial for providing meaningful, diagnostic feedback to the student and for generating pedagogical reports for instructors.
+Bloom's Taxonomy of Educational Objectives
+Widely used in education to categorize cognitive complexity. It  is used to assess the Cognitive Complexity (Bloom Level) associated with a mistake. Errors occurring at higher cognitive levels (e.g., Analysis or Evaluation) suggest a deeper misunderstanding of the problem or concept compared to those at lower levels (e.g., Remember or Understand). This layering allows the platform to tailor the complexity of remediation.
+2.3 Bayesian Knowledge Tracing (BKT)
+Bayesian Knowledge Tracing (BKT) is a state-of-the-art method in educational data mining for modeling student knowledge acquisition. BKT posits that for each Knowledge Component (KC), a student is either in a "known" or "unknown" state. The model calculates the probability of knowledge) using four primary parameters: $\text{pInitial}$ (initial knowledge), $\text{pLearn}$ (learning rate), $\text{pGuess}$ (probability of guessing correctly when unknown), and $\text{pSlip}$ (probability of slipping up when known).
+In EduCode, BKT is used to track mastery levels across over 12 defined KCs (e.g., 'Array Iteration', 'Conditional Logic', 'Recursion'). By continuously updating the $\text{pKnown}$ score after every submission, the platform dynamically identifies weak KCs and drives personalized recommendations, optimizing the student's learning path.
+
+
+Bayesian Knowledge Tracing (BKT) is a state-of-the-art method in educational data mining for modeling student knowledge acquisition. BKT posits that for each Knowledge Component (KC), a student is either in a "known" or "unknown" state. The model calculates the probability of knowledge (pKnown) using four primary parameters: pInitial (initial knowledge), pLearn (learning rate), pGuess (probability of guessing correctly when unknown), and pSlip (probability of slipping up when known).
+In EduCode, BKT is used to track mastery levels across 10 defined KCs (e.g., 'arrays', 'recursion', 'trees', 'hash_maps'). By continuously updating the pKnown score after every submission, the platform dynamically identifies weak KCs and drives personalized recommendations, optimizing the student's learning path.
+
+
+
+
+3. Methodology
+The methodology behind EduCode focuses on building a real-time, multi-layer error classification system that provides students with meaningful and pedagogically grounded feedback. The system integrates deterministic rule-based patterns, large language model (LLM) reasoning, and embedding-based clustering to analyze both the technical and cognitive aspects of programming errors. All components run within a containerized microservice architecture to support scalability and real-time performance.
+________________
+
+
+3.1 System Design Approach
+The development of EduCode followed three major methodological goals:
+            1. Design a research-backed error taxonomy informed by IEEE 1044-2009, Zehetmeier et al. (2015), and Bloom’s Taxonomy, capturing:
+
+               * the technical type of error,
+
+               * the underlying cognitive cause, and
+
+               * the cognitive complexity of the mistake.
+
+                  2. Build a hybrid classifier combining:
+
+                     * a rule-based engine for fast, high-confidence matches, and
+
+                     * a Gemini 2.0 Flash LLM fallback for complex or novel errors.
+
+                        3. Integrate the classifier into the real-time submission workflow to ensure that students receive immediate, actionable feedback after each code execution.
+
+This approach ensures that the system is both pedagogically rigorous and operationally efficient.
+________________
+
+
+3.2 Data Inputs for the Error Pipeline
+EduCode’s error classifier operates exclusively on live student submissions. For every failed attempt, the backend sends the AI service the following information:
+                           * Student source code
+
+                           * Selected programming language
+
+                           * Raw verdict (compilation error, runtime error, wrong answer, etc.)
+
+                           * Compiler or interpreter output
+
+                           * For logic errors: differences between expected and actual results
+
+                           * Problem metadata (title, description, examples)
+
+This data enables the system to determine the relevant Surface Error category, the likely Cognitive Cause, and the Bloom-level complexity of the error.
+________________
+
+
+3.3 Three-Layer Error Framework
+EduCode uses a structured, three-layer model to interpret each submission error:
+1. Surface Error (Technical Classification)
+Adapted from IEEE 1044-2009, EduCode supports the following categories:
+                              * Lexical
+
+                              * Syntax / Syntax-Lexical
+
+                              * Semantic/Type
+
+                              * Semantic/Link
+
+                              * Link/Binding
+
+                              * Runtime/Exception
+
+                              * Functional/Logic
+
+                              * Quality/Non-Functional (e.g., timeouts, inefficiency)
+
+                              * Concurrency/Timing
+
+                              * Environment/Deployment
+
+                              * Security/Weakness
+
+                              * Build/Configuration
+
+2. Cognitive Cause (Why the Error Occurred)
+Based on a custom framework inspired by Zehetmeier et al. (2015), EduCode defines eight cognitive causes:
+                                 * MENTAL_TYPO
+
+                                 * KNOWLEDGE_GAP
+
+                                 * MISCONCEPTION
+
+                                 * STRUCTURAL_BLINDNESS
+
+                                 * WRONG_CHOICE
+
+                                 * QUALITY_GAP
+
+                                 * LACK_OF_INNOVATION
+
+                                 * WRONG_CHOICE/MISCONCEPTION (hybrid category)
+
+3. Bloom Level (Cognitive Complexity)
+Using Bloom’s Taxonomy, each error is mapped to a level ranging from Remember to Create, helping distinguish between surface-level misunderstandings and deeper conceptual issues.
+________________
+
+
+3.4 Rule-Based Classification Engine
+The rule-based classifier (error_classifier.py) is designed to handle common, frequently recurring programming errors through deterministic pattern matching.
+Normalization
+Compiler and runtime messages are normalized by replacing:
+                                    * variable names → $VAR
+
+                                    * numeric literals → $NUM
+
+                                    * line numbers or file paths → $LINE
+
+This ensures that errors with the same structure but different values share a single standardized signature.
+Pattern Construction
+Over 60 rule-based patterns were manually constructed by examining:
+                                       * common Python, Java, C++, and JavaScript error messages
+
+                                       * typical student errors observed during platform testing
+
+Each rule maps directly to a structured output containing:
+                                          * a Surface Error category,
+
+                                          * a Cognitive Cause,
+
+                                          * and a Bloom-level classification.
+
+These rules allow the system to instantly classify many errors, including:
+                                             * syntax issues,
+
+                                             * type mismatches,
+
+                                             * null or undefined dereferencing,
+
+                                             * out-of-range indices,
+
+                                             * simple logic mistakes.
+
+This significantly reduces the need for LLM processing and ensures low latency.
+________________
+
+
+3.5 LLM Fallback Classifier (Gemini 2.0 Flash)
+When a submission cannot be confidently classified using rules, EduCode invokes a Gemini-based LLM fallback implemented in main.py.
+Input Context
+The LLM receives:
+                                                * the full student code,
+
+                                                * compiler or runtime error logs,
+
+                                                * the problem statement and its examples,
+
+                                                * failing test case details (when relevant).
+
+Prompt Methodology
+Prompts use a strictly constrained format requiring the model to:
+                                                   1. Explain the error,
+
+                                                   2. Identify the Surface Error category,
+
+                                                   3. Determine the Cognitive Cause,
+
+                                                   4. Assign a Bloom level,
+
+                                                   5. Output structured JSON.
+
+This ensures consistent, interpretable responses even for novel or unusual errors.
+________________
+
+
+3.6 Embedding-Based Error Clustering
+EduCode generates 768-dimensional embeddings for selected complex errors to support backend analytics and potential future enhancements.
+Embedding Construction
+Each embedding is derived from a combined textual representation that includes:
+                                                      * the LLM explanation,
+
+                                                      * the normalized error message,
+
+                                                      * key code fragments.
+
+Clustering
+K-Means is applied to group similar embeddings into clusters that capture patterns such as:
+                                                         * recurring logic mistakes,
+
+                                                         * common misconceptions,
+
+                                                         * typical off-by-one or boundary errors.
+
+Currently, these clusters are stored internally and not displayed to students or instructors, but they provide a foundation for future features like automated hinting or course analytics.
+________________
+
+
+3.7 Integration into the EduCode Workflow
+The error-classification pipeline is fully embedded in EduCode’s
+submission workflow:
+Frontend (Next.js): Students write code in the Monaco
+editor, and submissions are sent to the backend and
+Judge0.
+• Backend (Node.js/Express): Failed submissions are
+forwarded to the AI service, which returns classifica-
+tion metadata.
+• AI Service (FastAPI): Applies normalization, rule-
+based classification, LLM fallback, and optional em-
+bedding generation.
+• Backend: Saves the classification into PostgreSQL and
+updates the student’s BKT state.
+• Frontend: Displays the feedback, highlighting both
+the technical cause and the underlying cognitive issue.
+
+
+This architecture supports fast, interpretable feedback and enables an adaptive learning loop informed by both error analysis and BKT-based knowledge modeling.
+________________
+
+
+ 
+4. Tools Description (EduCode Platform)
+4.1 Functional Requirements (FRs)
+The EduCode platform meets the following key functional requirements:
+ID
+	Requirement
+	Description
+	FR1
+	Secure Code Execution
+	Allow students to submit code in Python, Java, C++, and JavaScript for secure execution against public and hidden test cases.
+  
+
+	FR2
+	Hybrid Error Diagnosis
+	Provide real-time, three-layered diagnostic feedback (Surface, Cognitive Cause, Bloom Level) using a hybrid rule/LLM classification pipeline.
+
+
+	FR3
+	Adaptive Learning
+	Continuously track student mastery using BKT for 12+ Knowledge Components (KCs) and generate personalized problem recommendations.
+	FR4
+	Role-Based Dashboards
+	Provide detailed dashboards for students (skill tracking, recommendations) and instructors (class performance, error pattern mining).
+	FR5
+	Problem Management
+	Allow instructors to create, tag (by Topic and KC), and manage coding problems and associated test cases.
+  
+
+	FR6
+	Robust Authentication
+	Implement secure, role-based access control (RBAC) and JWT authentication.
+
+
+	 
+4. Tools Description
+4.1 Functional Requirements
+EduCode is designed to operate as an adaptive programming education platform that provides real-time error analysis, personalized feedback, and dynamic skill tracking. The key functional requirements of the system are:
+                                                            1. Code Submission and Execution
+
+                                                               * Students must be able to write and submit code in multiple programming languages.
+
+                                                               * Submissions must be executed securely using Judge0, with verdicts and output returned immediately.
+
+                                                                  2. Real-Time Error Classification
+
+                                                                     * The system must classify errors into a Surface Error category, Cognitive Cause, and Bloom-level complexity.
+
+                                                                     * The classifier must combine rule-based patterns with an LLM fallback.
+
+                                                                        3. Adaptive Knowledge Modeling (BKT)
+
+                                                                           * Student mastery of Knowledge Components (KCs) must be updated after every submission.
+
+                                                                           * KCs with low mastery must generate personalized problem recommendations.
+
+                                                                              4. Feedback Delivery
+
+                                                                                 * Students must receive immediate, structured feedback explaining both what went wrong and why.
+
+                                                                                 * Feedback must include classification metadata and optional suggested areas for improvement.
+
+                                                                                    5. User Authentication and Persistence
+
+                                                                                       * Users must authenticate via JWT.
+
+                                                                                       * Submissions, classifications, and BKT states must be stored in PostgreSQL.
+
+                                                                                          6. System Scalability and Reliability
+
+                                                                                             * All services must run in Docker containers.
+
+                                                                                             * The architecture must support concurrent users and parallel code execution.
+
+________________
+
+
+4.2 Tool Design and Architecture
+EduCode follows a microservice architecture with clear separation of concerns:
+1. Frontend (Next.js 15 + React 19)
+                                                                                                * Provides the user interface for writing and submitting code.
+
+                                                                                                * Uses the Monaco Editor for multi-language syntax highlighting.
+
+                                                                                                * Displays structured feedback returned from the backend.
+
+2. Backend API (Node.js/Express + Prisma)
+                                                                                                   * Handles authentication, submission routing, and database operations.
+
+                                                                                                   * Sends student code to Judge0 for execution.
+
+                                                                                                   * For failed submissions, forwards relevant data to the AI service.
+
+                                                                                                   * Updates the BKT model and stores classification results.
+
+3. AI Service (FastAPI, Python)
+                                                                                                      * Implements the hybrid error-classification pipeline:
+
+                                                                                                         * Normalization of error logs
+
+                                                                                                         * Rule-based classifier
+
+                                                                                                         * Gemini LLM fallback
+
+                                                                                                         * Embedding generation for clustering
+
+                                                                                                            * Returns a structured JSON response to the backend.
+
+4. Database (PostgreSQL)
+                                                                                                               * Stores users, submissions, problems, test cases, error classifications, and BKT states.
+
+                                                                                                               * Optimized using Prisma ORM relations.
+
+5. Dockerized Deployment
+                                                                                                                  * Each service (frontend, backend, AI service, Judge0 proxy) runs in its own Docker container.
+
+                                                                                                                  * Docker Compose manages inter-service communication.
+
+This architecture ensures modularity, maintainability, and scalable deployment.
+________________
+
+
+4.3 Tool Quality Requirements
+EduCode must satisfy several quality standards:
+1. Performance
+                                                                                                                     * Error classification (rules + LLM fallback) must complete within acceptable latency (<2–3 seconds for LLM cases).
+
+                                                                                                                     * Code execution must be responsive and non-blocking.
+
+2. Accuracy
+                                                                                                                        * Rule-based patterns must classify common errors with high precision.
+
+                                                                                                                        * LLM fallback must reliably classify novel or ambiguous errors.
+
+                                                                                                                        * BKT updates must accurately track learning progression.
+
+3. Reliability
+                                                                                                                           * Systems must handle concurrent user submissions.
+
+                                                                                                                           * All services must be containerized and restart-safe.
+
+4. Usability
+                                                                                                                              * Feedback must be clear, interpretable, and student-friendly.
+
+                                                                                                                              * The interface should be intuitive and support multi-language code editing.
+
+5. Maintainability
+                                                                                                                                 * Modular microservice architecture
+
+                                                                                                                                 * Clear separation between UI, backend logic, and AI reasoning
+
+                                                                                                                                 * Easily extendable rule patterns and KC definitions
+
+________________
+
+
+4.4 Testing Strategy
+Testing was performed at multiple layers:
+1. Unit Testing
+                                                                                                                                    * Rule-based patterns were tested with known error messages across Python, JavaScript, Java, and C++.
+
+                                                                                                                                    * Normalization functions were validated using controlled synthetic error logs.
+
+                                                                                                                                    * BKT functions were tested with mock submissions.
+
+2. Integration Testing
+                                                                                                                                       * End-to-end submission flow tested:
+Student → Backend → Judge0 → Backend → AI Service → Backend → Frontend
+
+                                                                                                                                       * Verified that error metadata correctly propagates through all layers.
+
+3. LLM Prompt Testing
+                                                                                                                                          * Multiple prompt structures were tested to ensure stability and consistent JSON output.
+
+                                                                                                                                          * Edge-case prompts (empty files, truncated errors, multi-line errors) were evaluated.
+
+4. Stress and Load Testing
+                                                                                                                                             * Concurrent submissions simulated to test scalability.
+
+                                                                                                                                             * Dockerized infrastructure tested under high-volume load.
+
+5. Manual User Testing
+                                                                                                                                                * Conducted interactive sessions simulating real student usage.
+
+                                                                                                                                                * Collected user feedback on clarity of explanations and UI responsiveness.
+
+________________
+
+
+4.5 Validation and Evaluation
+Validation focuses on confirming that EduCode functions correctly and supports learning improvement.
+Evaluation Methods
+                                                                                                                                                   1. Accuracy of Error Classification
+
+                                                                                                                                                      * Compare rule-based classifications and LLM outputs against manually labeled ground truth.
+
+                                                                                                                                                      * Evaluate consistency across languages and error types.
+
+                                                                                                                                                         2. Effectiveness of Feedback
+
+                                                                                                                                                            * Conduct qualitative evaluations (student surveys, interviews) to measure perceived clarity and helpfulness.
+
+                                                                                                                                                               3. BKT Learning Path Validation
+
+                                                                                                                                                                  * Track whether students solve targeted KCs faster after receiving recommendations.
+
+                                                                                                                                                                  * Monitor improvement in p(Known) over time.
+
+                                                                                                                                                                     4. System Usability and Performance
+
+                                                                                                                                                                        * Measure response times and resource usage.
+
+                                                                                                                                                                        * Collect UX feedback from student testers.
+
+                                                                                                                                                                           5. Stress Testing Results
+
+                                                                                                                                                                              * Evaluate reliability under concurrent loads.
+
+Planned Validation Summary
+The tool will be evaluated through a combination of quantitative metrics (classification accuracy, latency), qualitative assessments (user feedback), and learning impact measurements (BKT progression). This multi-angle validation ensures the tool is both technically sound and educationally effective.
+
+
+6. Discussions
+The development of EduCode demonstrates that real-time, pedagogically informed error analysis is technically feasible and practically beneficial for introductory programming education. Several key implications emerge from the design and implementation of the system.
+Meaningful Feedback Improves Learning Outcomes
+ A major takeaway is that students benefit substantially from feedback that explains not only what failed but also why it failed. Traditional online judges provide binary outcomes, which often leave students confused or discouraged. EduCode’s multi-layer feedback model—combining Surface Error categories, Cognitive Causes, and Bloom-level complexity—shows that error explanations can be made structured, interpretable, and educationally meaningful. This suggests that beginner programmers can achieve deeper conceptual understanding when the system provides insight into their cognitive processes rather than only technical failures.
+Hybrid Classification Pipelines Are Effective
+ Another takeaway is that hybrid classification pipelines offer a strong balance between speed and accuracy. Rule-based matching handles common errors instantly, while LLM reasoning provides the flexibility to classify complex or novel cases. This hybrid approach avoids the latency and instability of relying entirely on an LLM, while also avoiding the rigidity and incompleteness of purely rule-based systems. The implication is that scalable educational tools can be built using hybrid AI architectures rather than relying solely on traditional symbolic reasoning or fully generative models.
+BKT Provides Actionable Adaptive Learning Signals
+ Integrating Bayesian Knowledge Tracing into the submission workflow demonstrates that real-time mastery modeling can meaningfully inform personalized learning pathways. By updating p(Known) after each submission, EduCode identifies weak concepts quickly and consistently. This suggests that adaptive learning in programming education does not require large datasets or complex deep learning models; interpretable probabilistic models like BKT can already provide actionable insight.
+Microservice Architecture Enhances Scalability
+ The modular architecture of EduCode highlights the importance of separation of concerns in educational tooling. By decoupling the frontend, backend, AI classifier, and Judge0 executor, the system can scale each component independently. This has implications for future tools: educational platforms can adopt microservices to support growth, maintainability, and resilience without introducing unnecessary architectural complexity.
+Future Opportunities for Intelligent Tutoring Systems
+ The final takeaway is that EduCode lays the groundwork for more advanced intelligent tutoring capabilities. The existing embedding and clustering pipeline, although not yet user-facing, demonstrates potential for detecting patterns in misconceptions, generating hints automatically, or informing curriculum-level analytics. This suggests that future work may leverage the current infrastructure to expand into more comprehensive ITS features such as hint generation, learning dashboards, or automated curriculum sequencing.
+Overall, EduCode shows that combining rule-based reasoning, LLMs, and probabilistic modeling can create a powerful and scalable platform for programming education. The implications extend beyond this specific project, suggesting design principles that can guide the next generation of intelligent learning tools.
+
+
+7. Conclusion
+EduCode is a novel, research-backed adaptive learning platform that fundamentally changes how programming education is delivered and assessed. This project presents a complete end-to-end adaptive coding education platform integrating error analysis, cognitive modeling, and pedagogically grounded feedback by integrating Bayesian Knowledge Tracing (BKT) for adaptive pathways and a state-of-the-art hybrid AI/Rule system for error diagnosis based on IEEE 1044 and Zehetmeier et al. (2015) frameworks, the platform acts as an intelligent tutor that understands not only what but also why students struggle.
+The project successfully delivered a robust, microservice-based architecture capable of secure code execution, real-time BKT updates, and generating deep, actionable analytics for students. The platform provides actionable insights to students and lays the foundation for future work such as pair programming, progressive hints, plagiarism detection, and mobile deployment. EduCode is poised to become a vital tool for modern computer science pedagogy.

@@ -5,11 +5,11 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// GET /:userId/recommendations
+// GET /:id/recommendations
 // Returns personalized problem recommendations based on BKT mastery and submission history
-router.get("/:userId/recommendations", async (req: Request, res: Response) => {
+router.get("/:id/recommendations", async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.id;
     const limit = Math.min(20, Math.max(1, parseInt((req.query.limit as string) || "10", 10)));
 
     if (!userId) {

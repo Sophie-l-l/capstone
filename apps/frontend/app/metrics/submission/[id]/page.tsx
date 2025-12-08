@@ -50,6 +50,7 @@ export default function SubmissionDetailPage({ params }: { params: { id: string 
   const { id } = params
   const [data, setData] = useState<SubmissionDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [code, setCode] = useState("")
 
   useEffect(() => {
@@ -61,7 +62,10 @@ export default function SubmissionDetailPage({ params }: { params: { id: string 
         setData(res)
         setCode(res.code || "")
       } catch (e) {
-        console.error(e)
+        console.error("Failed to load submission:", e)
+        if (mounted) {
+          setError(e instanceof Error ? e.message : "Failed to load submission")
+        }
       } finally {
         if (mounted) setLoading(false)
       }
@@ -74,6 +78,17 @@ export default function SubmissionDetailPage({ params }: { params: { id: string 
 
   if (loading) {
     return <div className="p-6">Loading…</div>
+  }
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-red-600 font-semibold mb-2">Error loading submission</div>
+        <div className="text-sm text-gray-600">{error}</div>
+        <Link href="/metrics/student" className="text-primary hover:underline mt-4 inline-block">
+          ← Back to Metrics
+        </Link>
+      </div>
+    )
   }
   if (!data) {
     return <div className="p-6">Not found</div>

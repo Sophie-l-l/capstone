@@ -22,7 +22,8 @@ steps:
       - '--region=us-central1'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      - '--set-env-vars=DATABASE_URL=postgresql://postgres:EduCode2025SecureDB!@34.28.152.182:5432/educode,JWT_SECRET=educode_super_secret_jwt_key_2025,NODE_ENV=production'
+      - '--set-env-vars=NODE_ENV=production'
+      - '--update-secrets=DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest'
 
 images:
   - 'gcr.io/$PROJECT_ID/educode-backend:latest'
