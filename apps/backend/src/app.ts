@@ -33,6 +33,7 @@ let recommendationsRoutes: any = require("./routes/recommendations");
 let instructorRoutes: any = require("./routes/instructorRoutes");
 let classRoutes: any = require("./routes/classes");
 let problemSetRoutes: any = require("./routes/problemSets");
+let submissionsRoutes: any = require("./routes/submissions");
 let errorsRoutes: any = null;
 let devRoutes: any = null;
 if (process.env.NODE_ENV !== 'production') {
@@ -143,6 +144,14 @@ if (problemSetRoutes) {
   app.use("/api/problem-sets", problemSetRoutes);
 } else {
   console.error('Problem set routes not available');
+}
+
+// Submissions routes
+submissionsRoutes = normalizeRouter(submissionsRoutes);
+if (submissionsRoutes) {
+  app.use("/api/submissions", submissionsRoutes);
+} else {
+  console.error('Submissions routes not available');
 }
 
 // Analysis routes (AI-related)
