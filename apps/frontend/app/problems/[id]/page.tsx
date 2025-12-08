@@ -15,66 +15,111 @@ import { Play, Send, ArrowLeft, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 const languageTemplates = {
-  python: `class Solution:
-    def solve(self, nums):
-        """
-        Write your solution here.
-        Args:
-            nums: Input parameter (adjust based on problem)
-        Returns:
-            The result according to problem requirements
-        """
-        # Write your code here
-        pass
+  python: `# You can import standard library modules
+# Examples: collections, itertools, math, heapq, bisect
+from typing import List, Dict, Set, Optional
 
-# The system will call Solution().solve(test_input) for each test case`,
+def solve():
+    """
+    Write your solution here.
+    Read input using input() and print() your answer.
+    """
+    # Example: Read a single integer
+    # n = int(input())
+    
+    # Example: Read a list of integers
+    # nums = list(map(int, input().split()))
+    
+    # Write your code here
+    
+    # Example: Print result
+    # print(result)
+    pass
 
-  javascript: `class Solution {
-    solve(nums) {
-        /*
-         * Write your solution here.
-         * @param {any} nums - Input parameter (adjust based on problem)
-         * @return {any} The result according to problem requirements
-         */
+# Call your function
+solve()`,
+
+  javascript: `/**
+ * Write your solution here.
+ * Read input using readline() and print using console.log()
+ */
+
+// Read input from stdin
+const readline = require('readline');
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+let lines = [];
+rl.on('line', (line) => {
+    lines.push(line);
+});
+
+rl.on('close', () => {
+    // Example: Get first line as number
+    // const n = parseInt(lines[0]);
+    
+    // Example: Get array of numbers
+    // const nums = lines[1].split(' ').map(Number);
+    
+    // Write your code here
+    
+    // Example: Print result
+    // console.log(result);
+});`,
+
+  java: `import java.util.*;
+import java.util.stream.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        
+        // Example: Read a single integer
+        // int n = scanner.nextInt();
+        
+        // Example: Read a line
+        // String line = scanner.nextLine();
+        
+        // Example: Read array of integers
+        // int[] nums = Arrays.stream(scanner.nextLine().split(" "))
+        //                    .mapToInt(Integer::parseInt)
+        //                    .toArray();
+        
         // Write your code here
+        
+        // Example: Print result
+        // System.out.println(result);
+        
+        scanner.close();
     }
-}
-
-// The system will call new Solution().solve(test_input) for each test case`,
-
-  java: `class Solution {
-    /**
-     * Write your solution here.
-     * @param nums Input parameter (adjust based on problem)
-     * @return The result according to problem requirements
-     */
-    public Object solve(Object nums) {
-        // Write your code here
-        return null;
-    }
-}
-
-// The system will call new Solution().solve(test_input) for each test case`,
+}`,
 
   cpp: `#include <iostream>
 #include <vector>
 #include <string>
+#include <algorithm>
 using namespace std;
 
-class Solution {
-public:
-    /**
-     * Write your solution here.
-     * @param nums Input parameter (adjust based on problem)
-     * @return The result according to problem requirements
-     */
-    auto solve(auto nums) {
-        // Write your code here
-        return nums;
-    }
-};
-
-// The system will call Solution().solve(test_input) for each test case`
+int main() {
+    // Example: Read a single integer
+    // int n;
+    // cin >> n;
+    
+    // Example: Read array of integers
+    // vector<int> nums(n);
+    // for (int i = 0; i < n; i++) {
+    //     cin >> nums[i];
+    // }
+    
+    // Write your code here
+    
+    // Example: Print result
+    // cout << result << endl;
+    
+    return 0;
+}`
 }
 
 export default function ProblemPage() {
