@@ -16,6 +16,8 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [dashboardData, setDashboardData] = useState<any>(null)
+  const [recommendations, setRecommendations] = useState<any[]>([])
+  const [recentSubmissions, setRecentSubmissions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -25,9 +27,15 @@ export default function DashboardPage() {
     }
 
     if (user?.id) {
-      apiClient.getStudentDashboard(user.id)
-        .then(data => {
-          setDashboardData(data)
+      Promise.all([
+        apiClient.getStudentDashboard(user.id),
+        apiClient.getRecommendations(user.id, 5),
+        apiClient.getStudentSubmissions(user.id, 1, 5)
+      ])
+        .then(([dashboard, recs, subs]) => {
+          setDashboardData(dashboard)
+          setRecommendations(recs.recommendations || [])
+          setRecentSubmissions(subs.submissions || [])
           setLoading(false)
         })
         .catch(error => {
@@ -143,10 +151,10 @@ export default function DashboardPage() {
 
             <div className="grid gap-6 lg:grid-cols-2">
               <SkillMasteryChart skills={skills} />
-              <RecommendedProblems problems={[]} />
+              <RecommendedProblems problems={recommendations} />
             </div>
 
-            <RecentSubmissions submissions={[]} problems={[]} />
+            <RecentSubmissions submissions={recentSubmissions} problems={[]} />
           </div>
         </main>
       </div>

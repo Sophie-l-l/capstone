@@ -237,6 +237,19 @@ class ApiClient {
     return this.request(`/api/students/submissions/${submissionId}/detail`)
   }
 
+  // Student-specific endpoints
+  async getStudentDashboard(studentId: string) {
+    return this.request(`/api/students/${studentId}/dashboard`)
+  }
+
+  async getStudentSubmissions(studentId: string, page: number = 1, limit: number = 20) {
+    return this.request(`/api/students/${studentId}/submissions?page=${page}&limit=${limit}`)
+  }
+
+  async getRecommendations(userId: string, limit: number = 10) {
+    return this.request(`/api/students/${userId}/recommendations?limit=${limit}`)
+  }
+
   // Analytics endpoints
   async getUserStats() {
     if (shouldUseMock('analytics')) {

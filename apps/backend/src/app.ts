@@ -29,6 +29,7 @@ let codeExecutionRoutes: any = require("./routes/codeExecution");
 let studentDashboardRoutes: any = require("./routes/studentDashboard");
 let studentSubmissionsRoutes: any = require("./routes/studentSubmissions");
 let studentErrorsRoutes: any = require("./routes/studentErrors");
+let recommendationsRoutes: any = require("./routes/recommendations");
 let instructorRoutes: any = require("./routes/instructorRoutes");
 let errorsRoutes: any = null;
 let devRoutes: any = null;
@@ -54,6 +55,7 @@ codeExecutionRoutes = normalizeRouter(codeExecutionRoutes);
 studentDashboardRoutes = normalizeRouter(studentDashboardRoutes);
 studentSubmissionsRoutes = normalizeRouter(studentSubmissionsRoutes);
 studentErrorsRoutes = normalizeRouter(studentErrorsRoutes);
+recommendationsRoutes = normalizeRouter(recommendationsRoutes);
 instructorRoutes = normalizeRouter(instructorRoutes);
 errorsRoutes = normalizeRouter(errorsRoutes);
 devRoutes = normalizeRouter(devRoutes);
@@ -105,18 +107,19 @@ try {
 } catch (e) {
   console.error('[diagnostic] error computing callbacks:', e);
 }
-
 // Mounting via a small wrapper to ensure Express receives a plain middleware function
 // Combine student-related routers so both dashboard and submissions endpoints are available
 const studentsCombined = express.Router();
 if (studentDashboardRoutes) studentsCombined.use(studentDashboardRoutes);
 if (studentSubmissionsRoutes) studentsCombined.use(studentSubmissionsRoutes);
 if (studentErrorsRoutes) studentsCombined.use(studentErrorsRoutes);
+if (recommendationsRoutes) studentsCombined.use(recommendationsRoutes);
 
-if (!studentDashboardRoutes && !studentSubmissionsRoutes && !studentErrorsRoutes) {
+if (!studentDashboardRoutes && !studentSubmissionsRoutes && !studentErrorsRoutes && !recommendationsRoutes) {
   console.error('No student routes available to mount under /api/students');
 } else {
   app.use("/api/students", studentsCombined);
+} app.use("/api/students", studentsCombined);
 }
 
 // Instructor routes
