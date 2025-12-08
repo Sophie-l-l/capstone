@@ -152,7 +152,7 @@ export function ProblemsTable({
               <SelectValue placeholder="Assignment" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Assignments</SelectItem>
+              <SelectItem value="all">None (All Problems)</SelectItem>
               {assignmentsList.map((assignment) => (
                 <SelectItem key={assignment.id} value={assignment.id}>
                   {assignment.title}

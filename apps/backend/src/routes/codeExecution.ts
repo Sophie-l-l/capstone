@@ -280,6 +280,41 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
       }
     });
 
+    // Fetch error classification if submission failed
+    let errorClassification = null;
+    if (status !== "accepted") {
+      try {
+        const submissionError = await prisma.submissionError.findUnique({
+          where: { submissionId: submission.id },
+          include: {
+            signature: {
+              select: {
+                surfaceError: true,
+                cognitiveCause: true,
+                bloomLevel: true,
+                suggestion: true,
+                errorPattern: true
+              }
+            }
+          }
+        });
+
+        if (submissionError && submissionError.signature) {
+          errorClassification = {
+            id: submissionError.id,
+            surfaceError: submissionError.signature.surfaceError,
+            cognitiveCause: submissionError.signature.cognitiveCause,
+            bloomLevel: submissionError.signature.bloomLevel,
+            suggestion: submissionError.signature.suggestion,
+            errorPattern: submissionError.signature.errorPattern
+          };
+        }
+      } catch (e) {
+        console.error('Error fetching error classification:', e);
+        // Continue without error classification
+      }
+    }
+
     res.json({
       submissionId: submission.id,
       status: submission.status,
@@ -289,7 +324,8 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
       memory: submission.memory,
       compileOutput: submission.compileOutput,
       stderr: submission.stderr,
-      submittedAt: submission.submittedAt
+      submittedAt: submission.submittedAt,
+      error: errorClassification
     });
   } catch (error) {
     console.error("Submit code error:", error);

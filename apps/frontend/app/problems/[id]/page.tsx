@@ -242,15 +242,28 @@ export default function ProblemPage() {
         compileOutput: result.compileOutput || null,
         stderr: result.stderr || null,
         submittedAt: new Date().toISOString(),
+        error: result.error || null,
       }
 
       setSubmission(submitSubmission)
 
+      // Get status-specific message
+      let statusMessage = "Your solution passed all test cases and has been recorded."
+      if (result.status === "compilation_error") {
+        statusMessage = "Your code has compilation errors. Check the output below."
+      } else if (result.status === "runtime_error") {
+        statusMessage = "Your code encountered a runtime error. Check the error details below."
+      } else if (result.status === "time_limit_exceeded") {
+        statusMessage = "Your solution exceeded the time limit. Consider optimizing your algorithm."
+      } else if (result.status === "wrong_answer") {
+        statusMessage = `Your solution failed ${result.totalTestCases - result.testCasesPassed}/${result.totalTestCases} test cases.`
+      } else if (result.status !== "accepted") {
+        statusMessage = "Your submission failed. Check the details below."
+      }
+
       toast({
         title: result.status === "accepted" ? "Submission Successful!" : "Submission Failed",
-        description: result.message || (result.status === "accepted"
-          ? "Your solution passed all test cases and has been recorded."
-          : "Your submission failed some test cases."),
+        description: result.message || statusMessage,
         variant: result.status === "accepted" ? "default" : "destructive",
       })
     } catch (error) {

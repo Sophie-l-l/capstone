@@ -129,6 +129,43 @@ export function TestResults({ submission }: TestResultsProps) {
             </pre>
           </div>
         )}
+
+        {submission.error && (
+          <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                AI Error Analysis
+              </p>
+            </div>
+            
+            <div className="space-y-2 text-sm">
+              <div className="flex items-start gap-2">
+                <span className="font-medium text-blue-700 dark:text-blue-300 min-w-[120px]">Error Type:</span>
+                <span className="text-blue-600 dark:text-blue-400">{submission.error.surfaceError}</span>
+              </div>
+              
+              <div className="flex items-start gap-2">
+                <span className="font-medium text-blue-700 dark:text-blue-300 min-w-[120px]">Likely Cause:</span>
+                <span className="text-blue-600 dark:text-blue-400">{submission.error.cognitiveCause}</span>
+              </div>
+              
+              <div className="flex items-start gap-2">
+                <span className="font-medium text-blue-700 dark:text-blue-300 min-w-[120px]">Skill Level:</span>
+                <span className="text-blue-600 dark:text-blue-400">{submission.error.bloomLevel}</span>
+              </div>
+              
+              {submission.error.suggestion && (
+                <div className="mt-3 pt-3 border-t border-blue-500/20">
+                  <p className="font-medium text-blue-700 dark:text-blue-300 mb-1">💡 Suggestion:</p>
+                  <p className="text-blue-600 dark:text-blue-400 leading-relaxed">
+                    {submission.error.suggestion}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

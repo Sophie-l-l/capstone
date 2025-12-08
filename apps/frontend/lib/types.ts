@@ -61,6 +61,16 @@ export interface Submission {
   compileOutput?: string | null
   stderr?: string | null
   submittedAt: string
+  error?: SubmissionError | null
+}
+
+export interface SubmissionError {
+  id: string
+  surfaceError: string
+  cognitiveCause: string
+  bloomLevel: string
+  suggestion: string
+  errorPattern: string
 }
 
 export interface UserStats {

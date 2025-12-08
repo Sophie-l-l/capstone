@@ -58,7 +58,13 @@ router.get("/class/:classId", authenticateToken, async (req: Request, res: Respo
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json({ problemSets });
+    // Transform the nested problem structure to flatten it
+    const transformedProblemSets = problemSets.map(ps => ({
+      ...ps,
+      problems: ps.problems.map(p => p.problem)
+    }));
+
+    res.json({ problemSets: transformedProblemSets });
   } catch (error) {
     console.error("Get problem sets error:", error);
     res.status(500).json({ message: "Internal server error" });
