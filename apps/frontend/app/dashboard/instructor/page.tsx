@@ -314,30 +314,40 @@ export default function InstructorDashboardPage() {
                             <CardDescription>Visual breakdown of performance tiers</CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <ResponsiveContainer width="100%" height={250}>
+                            <ResponsiveContainer width="100%" height={280}>
                               <PieChart>
                                 <Pie
                                   data={performanceClusters}
                                   cx="50%"
-                                  cy="50%"
-                                  labelLine={{ stroke: '#888', strokeWidth: 1 }}
-                                  label={(entry) => {
-                                    return `${entry.name}: ${entry.count}`
+                                  cy="45%"
+                                  labelLine={{ 
+                                    stroke: '#888', 
+                                    strokeWidth: 1,
+                                    length: 20,
+                                    type: 'polyline'
                                   }}
-                                  outerRadius={75}
+                                  label={(entry) => {
+                                    const total = performanceClusters.reduce((sum, item) => sum + item.count, 0)
+                                    const percent = ((entry.count / total) * 100).toFixed(0)
+                                    return `${percent}%`
+                                  }}
+                                  outerRadius={70}
                                   fill="#8884d8"
                                   dataKey="count"
-                                  minAngle={15}
+                                  minAngle={20}
                                 >
                                   {performanceClusters.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.color} />
                                   ))}
                                 </Pie>
-                                <Tooltip />
+                                <Tooltip 
+                                  formatter={(value, name, props) => [`${value} students`, props.payload.name]}
+                                />
                                 <Legend 
                                   verticalAlign="bottom" 
-                                  height={36}
-                                  wrapperStyle={{ fontSize: '12px' }}
+                                  height={45}
+                                  wrapperStyle={{ fontSize: '13px', paddingTop: '10px' }}
+                                  formatter={(value, entry: any) => `${value}: ${entry.payload.count}`}
                                 />
                               </PieChart>
                             </ResponsiveContainer>

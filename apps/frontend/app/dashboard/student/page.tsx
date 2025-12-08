@@ -622,31 +622,37 @@ export default function StudentDashboardPage() {
                 ) : (() => {
                   const totalErrors = errorData.topErrors.reduce((sum, item) => sum + item.count, 0)
                   
-                  // Extract surface error type and assign colors
-                  const surfaceErrorColors: Record<string, string> = {
-                    'Lexical': '#3B82F6',
-                    'Syntax': '#8B5CF6', 
-                    'Semantic': '#10B981',
-                    'Functional': '#F59E0B',
-                    'Logic': '#EF4444',
-                    'Runtime': '#EC4899'
+                  // Color mapping based on first part of error type (e.g., "runtime/execution", "syntax", etc.)
+                  const categoryColors: Record<string, string> = {
+                    'runtime/execution': '#EF4444',
+                    'runtime': '#EF4444',
+                    'syntax': '#8B5CF6', 
+                    'semantic': '#10B981',
+                    'logical': '#F59E0B',
+                    'lexical': '#3B82F6',
+                    'type': '#EC4899',
+                    'reference': '#14B8A6'
                   }
                   
                   const dataWithColors = errorData.topErrors.map(item => {
-                    const surfaceType = item.label.split(':')[0] || item.label.split(' ')[0]
-                    const color = surfaceErrorColors[surfaceType] || '#6B7280'
-                    return { ...item, fill: color, surfaceType }
+                    // Get category from first part (before colon or slash)
+                    const category = item.label.toLowerCase().split(/[:/]/)[0].trim()
+                    const color = categoryColors[category] || '#6B7280'
+                    return { ...item, fill: color, category }
                   })
                   
                   return (
                     <ResponsiveContainer width="95%" height="95%">
-                      <BarChart data={dataWithColors} margin={{ top: 25, right: 15, left: 5, bottom: 20 }}>
+                      <BarChart data={dataWithColors} margin={{ top: 30, right: 15, left: 5, bottom: 50 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                         <XAxis 
                           dataKey="label" 
-                          tick={false}
-                          tickLine={false}
-                          height={10}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          interval={0}
+                          tick={{ fontSize: 10, fill: '#6B7280' }}
+                          tickLine={{ stroke: '#E5E7EB' }}
                         />
                         <YAxis 
                           tick={{ fontSize: 11, fill: '#6B7280' }}
@@ -654,13 +660,15 @@ export default function StudentDashboardPage() {
                           width={35}
                         />
                         <Tooltip 
-                          position={{ y: 0 }}
                           content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                               const data = payload[0].payload
                               return (
                                 <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
                                   <p className="font-medium text-sm mb-1">{data.label}</p>
+                                  <p className="text-xs text-gray-600">
+                                    Category: {data.category}
+                                  </p>
                                   <p className="text-xs text-gray-600">
                                     {data.count} errors ({((data.count / totalErrors) * 100).toFixed(1)}%)
                                   </p>
@@ -675,6 +683,12 @@ export default function StudentDashboardPage() {
                           dataKey="count" 
                           radius={[4, 4, 0, 0]}
                           maxBarSize={45}
+                          label={{
+                            position: 'top',
+                            fontSize: 11,
+                            fill: '#374151',
+                            formatter: (value: number) => value
+                          }}
                         />
                       </BarChart>
                     </ResponsiveContainer>
@@ -709,7 +723,7 @@ export default function StudentDashboardPage() {
                   
                   return (
                     <ResponsiveContainer width="95%" height="95%">
-                      <BarChart data={surfaceData} margin={{ top: 25, right: 15, left: 5, bottom: 20 }}>
+                      <BarChart data={surfaceData} margin={{ top: 30, right: 15, left: 5, bottom: 50 }}>
                         <defs>
                           <linearGradient id="colorSurface" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
@@ -718,10 +732,13 @@ export default function StudentDashboardPage() {
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                         <XAxis 
-                          dataKey="name" 
-                          tick={false}
-                          tickLine={false}
-                          height={10}
+                          dataKey="name"
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          interval={0}
+                          tick={{ fontSize: 10, fill: '#6B7280' }}
+                          tickLine={{ stroke: '#E5E7EB' }}
                         />
                         <YAxis 
                           tick={{ fontSize: 11, fill: '#6B7280' }}
@@ -729,7 +746,6 @@ export default function StudentDashboardPage() {
                           width={35}
                         />
                         <Tooltip 
-                          position={{ y: 0 }}
                           content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                               const data = payload[0].payload
@@ -751,6 +767,12 @@ export default function StudentDashboardPage() {
                           fill="url(#colorSurface)" 
                           radius={[4, 4, 0, 0]}
                           maxBarSize={45}
+                          label={{
+                            position: 'top',
+                            fontSize: 11,
+                            fill: '#374151',
+                            formatter: (value: number) => value
+                          }}
                         />
                       </BarChart>
                     </ResponsiveContainer>
@@ -843,7 +865,7 @@ export default function StudentDashboardPage() {
                   
                   return (
                     <ResponsiveContainer width="95%" height="95%">
-                      <BarChart data={bloomData} margin={{ top: 25, right: 15, left: 5, bottom: 20 }}>
+                      <BarChart data={bloomData} margin={{ top: 30, right: 15, left: 5, bottom: 50 }}>
                         <defs>
                           <linearGradient id="colorBloom" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
@@ -852,10 +874,13 @@ export default function StudentDashboardPage() {
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                         <XAxis 
-                          dataKey="level" 
-                          tick={false}
-                          tickLine={false}
-                          height={10}
+                          dataKey="level"
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                          interval={0}
+                          tick={{ fontSize: 10, fill: '#6B7280' }}
+                          tickLine={{ stroke: '#E5E7EB' }}
                         />
                         <YAxis 
                           tick={{ fontSize: 11, fill: '#6B7280' }}
@@ -863,7 +888,6 @@ export default function StudentDashboardPage() {
                           width={35}
                         />
                         <Tooltip 
-                          position={{ y: 0 }}
                           content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                               const data = payload[0].payload
@@ -885,6 +909,12 @@ export default function StudentDashboardPage() {
                           fill="url(#colorBloom)" 
                           radius={[4, 4, 0, 0]}
                           maxBarSize={45}
+                          label={{
+                            position: 'top',
+                            fontSize: 11,
+                            fill: '#374151',
+                            formatter: (value: number) => value
+                          }}
                         />
                       </BarChart>
                     </ResponsiveContainer>

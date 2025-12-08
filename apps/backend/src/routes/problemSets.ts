@@ -58,7 +58,7 @@ router.get("/class/:classId", authenticateToken, async (req: Request, res: Respo
       orderBy: { createdAt: 'desc' }
     });
 
-    res.json(problemSets);
+    res.json({ problemSets });
   } catch (error) {
     console.error("Get problem sets error:", error);
     res.status(500).json({ message: "Internal server error" });

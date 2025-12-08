@@ -45,7 +45,7 @@ router.get("/", authenticateToken, async (req: Request, res: Response) => {
       });
     }
 
-    res.json(classes);
+    res.json({ classes });
   } catch (error) {
     console.error("Get classes error:", error);
     res.status(500).json({ message: "Internal server error" });
