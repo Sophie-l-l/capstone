@@ -22,8 +22,8 @@ steps:
       - '--region=us-central1'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      - '--set-env-vars=NODE_ENV=production'
-      - '--update-secrets=DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest'
+      - '--set-env-vars=NODE_ENV=production,AI_SERVICE_URL=https://educode-ai-162585155042.us-central1.run.app,JUDGE0_API_URL=https://judge0-ce.p.rapidapi.com'
+      - '--update-secrets=DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,JUDGE0_API_KEY=JUDGE0_API_KEY:latest'
 
 images:
   - 'gcr.io/$PROJECT_ID/educode-backend:latest'
