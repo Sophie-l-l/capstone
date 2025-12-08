@@ -50,8 +50,11 @@ router.post("/:id/run", authenticateToken, async (req: Request, res: Response) =
       return res.status(404).json({ message: "Problem not found" });
     }
 
-    if (problem.testCases.length === 0) {
-      return res.status(400).json({ message: "No test cases available for this problem" });
+    if (!problem.testCases || problem.testCases.length === 0) {
+      return res.status(400).json({ 
+        message: "No test cases available for this problem",
+        error: "This problem has not been configured with test cases yet. Please contact an instructor."
+      });
     }
 
   // Run code against each public test case
@@ -141,6 +144,13 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
 
     if (!problem) {
       return res.status(404).json({ message: "Problem not found" });
+    }
+
+    if (!problem.testCases || problem.testCases.length === 0) {
+      return res.status(400).json({ 
+        message: "Cannot submit solution",
+        error: "This problem has not been configured with test cases yet. Please contact an instructor."
+      });
     }
 
   // Run code against all test cases
