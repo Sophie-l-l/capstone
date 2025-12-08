@@ -10,12 +10,25 @@ Key improvements:
 5. JSON Schema enforcement via response_mime_type
 6. Self-verification step in prompt
 7. Confidence calibration based on evidence strength
+8. TYPE SAFETY: Uses shared enums to prevent invalid values like "Unknown"
 """
 
 import json
 import os
 import logging
 from typing import Optional, Dict, Any
+
+from error_types import (
+    SurfaceErrorCategory,
+    CognitiveCause,
+    BloomLevel,
+    is_valid_surface_error,
+    is_valid_cognitive_cause,
+    is_valid_bloom_level,
+    get_all_surface_errors,
+    get_all_cognitive_causes,
+    get_all_bloom_levels
+)
 
 logger = logging.getLogger(__name__)
 
@@ -323,6 +336,41 @@ RESPOND WITH ONLY THE JSON OBJECT. Example format:
         # DEBUG: Log what LLM returned
         logger.info(f"🤖 LLM returned for compiler error: surface_error={result.get('surface_error')}, specific_error={result.get('specific_error')}")
         
+        # ✨ NEW: VALIDATE surface_error against allowed values
+        surface_error = result.get("surface_error", "")
+        if not is_valid_surface_error(surface_error):
+            logger.error(f"❌ INVALID surface_error from LLM: '{surface_error}' - must be one of {get_all_surface_errors()}")
+            # Try to map common mistakes
+            surface_error_lower = surface_error.lower()
+            if "syntax" in surface_error_lower:
+                result["surface_error"] = SurfaceErrorCategory.SYNTAX.value
+            elif "runtime" in surface_error_lower or "execution" in surface_error_lower:
+                result["surface_error"] = SurfaceErrorCategory.RUNTIME_EXCEPTION.value
+            elif "logic" in surface_error_lower or "functional" in surface_error_lower:
+                result["surface_error"] = SurfaceErrorCategory.FUNCTIONAL_LOGIC.value
+            elif "type" in surface_error_lower or "semantic" in surface_error_lower:
+                result["surface_error"] = SurfaceErrorCategory.SEMANTIC_TYPE.value
+            else:
+                logger.error(f"❌ Cannot map invalid surface_error '{surface_error}', rejecting classification")
+                return None
+            logger.warning(f"⚠️ Auto-corrected surface_error to: {result['surface_error']}")
+        
+        # ✨ NEW: VALIDATE cognitive_cause against allowed values
+        cognitive_cause = result.get("cognitive_cause", "")
+        if not is_valid_cognitive_cause(cognitive_cause):
+            logger.error(f"❌ INVALID cognitive_cause from LLM: '{cognitive_cause}' - must be one of {get_all_cognitive_causes()}")
+            # Default to most common cause
+            result["cognitive_cause"] = CognitiveCause.KNOWLEDGE_GAP.value
+            logger.warning(f"⚠️ Defaulted cognitive_cause to: {result['cognitive_cause']}")
+        
+        # ✨ NEW: VALIDATE bloom_level against allowed values
+        bloom_level = result.get("bloom_level", "")
+        if not is_valid_bloom_level(bloom_level):
+            logger.error(f"❌ INVALID bloom_level from LLM: '{bloom_level}' - must be one of {get_all_bloom_levels()}")
+            # Default to Apply (most common for student errors)
+            result["bloom_level"] = BloomLevel.APPLY.value
+            logger.warning(f"⚠️ Defaulted bloom_level to: {result['bloom_level']}")
+        
         # Validate required fields
         required_fields = ["surface_error", "specific_error", "compiler_excerpt", 
                           "cognitive_cause", "bloom_level", "reasoning"]
@@ -375,11 +423,11 @@ def classify_logic_error_with_gemini(
     except ImportError:
         logger.warning("google.generativeai not installed")
         return {
-            "surface_error": "Functional/Logic",
+            "surface_error": SurfaceErrorCategory.FUNCTIONAL_LOGIC.value,
             "specific_error": "Incorrect output",
             "compiler_excerpt": f"Expected: {expected[:50]}, Got: {actual[:50]}",
-            "cognitive_cause": "WRONG_CHOICE",
-            "bloom_level": "Apply",
+            "cognitive_cause": CognitiveCause.WRONG_CHOICE.value,
+            "bloom_level": BloomLevel.APPLY.value,
             "reasoning": "Logic error detected but LLM unavailable for detailed analysis.",
             "confidence": 0.55
         }
@@ -388,11 +436,11 @@ def classify_logic_error_with_gemini(
     if not google_key:
         logger.warning("GOOGLE_API_KEY not set")
         return {
-            "surface_error": "Functional/Logic",
+            "surface_error": SurfaceErrorCategory.FUNCTIONAL_LOGIC.value,
             "specific_error": "Incorrect output",
             "compiler_excerpt": f"Expected: {expected[:50]}, Got: {actual[:50]}",
-            "cognitive_cause": "WRONG_CHOICE",
-            "bloom_level": "Apply",
+            "cognitive_cause": CognitiveCause.WRONG_CHOICE.value,
+            "bloom_level": BloomLevel.APPLY.value,
             "reasoning": "Logic error detected but API key missing.",
             "confidence": 0.55
         }
@@ -580,7 +628,7 @@ RESPOND WITH ONLY THE JSON OBJECT. Example:
         
         result = json.loads(text)
         
-        # DEBUG: Log what LLM returned before overwriting
+        # DEBUG: Log what LLM returned before validation
         print(f"🤖 LLM RAW RESPONSE for logic error:")
         print(f"   surface_error: {result.get('surface_error')}")
         print(f"   specific_error: {result.get('specific_error')}")
@@ -589,18 +637,28 @@ RESPOND WITH ONLY THE JSON OBJECT. Example:
         print(f"   confidence: {result.get('confidence')}")
         logger.info(f"🤖 LLM returned for logic error: surface_error={result.get('surface_error')}, specific_error={result.get('specific_error')}")
         
-        result["surface_error"] = "Functional/Logic" 
-        # //hardcode surface error
-        # Ensure required fields
-        if "surface_error" not in result or not result["surface_error"]:
-            result["surface_error"] = "Functional/Logic"
-            print(f"⚠️ LLM returned empty surface_error, defaulting to 'Functional/Logic'")
-            logger.warning(f"⚠️ LLM returned empty surface_error, defaulting to 'Functional/Logic'")
+        # ✨ NEW: Always set to Functional/Logic for logic errors
+        result["surface_error"] = SurfaceErrorCategory.FUNCTIONAL_LOGIC.value
+        
+        # ✨ NEW: VALIDATE cognitive_cause
+        cognitive_cause = result.get("cognitive_cause", "")
+        if not is_valid_cognitive_cause(cognitive_cause):
+            logger.error(f"❌ INVALID cognitive_cause from LLM: '{cognitive_cause}'")
+            # For logic errors, most common causes are WRONG_CHOICE or STRUCTURAL_BLINDNESS
+            result["cognitive_cause"] = CognitiveCause.WRONG_CHOICE.value
+            logger.warning(f"⚠️ Defaulted cognitive_cause to: {result['cognitive_cause']}")
+        
+        # ✨ NEW: VALIDATE bloom_level (logic errors are typically Apply+)
+        bloom_level = result.get("bloom_level", "")
+        valid_logic_levels = [BloomLevel.APPLY.value, BloomLevel.ANALYSE.value, 
+                             BloomLevel.EVALUATE.value, BloomLevel.CREATE.value]
+        if bloom_level not in valid_logic_levels:
+            logger.error(f"❌ INVALID bloom_level for logic error: '{bloom_level}'")
+            result["bloom_level"] = BloomLevel.APPLY.value
+            logger.warning(f"⚠️ Defaulted bloom_level to: {result['bloom_level']}")
         
         if "confidence" not in result:
             result["confidence"] = 0.70
-        if "bloom_level" not in result or result["bloom_level"] not in ["Apply", "Analyse", "Evaluate", "Create"]:
-            result["bloom_level"] = "Apply"
         
         # IMPROVED: Confidence calibration for logic errors
         result = _calibrate_confidence(result, f"Logic: {expected} vs {actual}", code)
@@ -615,6 +673,26 @@ RESPOND WITH ONLY THE JSON OBJECT. Example:
 
     except json.JSONDecodeError as e:
         logger.exception(f"Failed to parse logic error JSON: {str(e)[:200]}")
+        return {
+            "surface_error": SurfaceErrorCategory.FUNCTIONAL_LOGIC.value,
+            "specific_error": "Incorrect output",
+            "compiler_excerpt": f"Expected: {expected[:50]}, Got: {actual[:50]}",
+            "cognitive_cause": CognitiveCause.WRONG_CHOICE.value,
+            "bloom_level": BloomLevel.APPLY.value,
+            "reasoning": "Logic error detected but JSON parsing failed during classification.",
+            "confidence": 0.60
+        }
+    except Exception as e:
+        logger.exception(f"Logic error classification failed: {e}")
+        return {
+            "surface_error": SurfaceErrorCategory.FUNCTIONAL_LOGIC.value,
+            "specific_error": "Incorrect output",
+            "compiler_excerpt": f"Expected: {expected[:50]}, Got: {actual[:50]}",
+            "cognitive_cause": CognitiveCause.WRONG_CHOICE.value,
+            "bloom_level": BloomLevel.APPLY.value,
+            "reasoning": "Logic error detected but classification encountered exception.",
+            "confidence": 0.60
+        }
         return {
             "surface_error": "Functional/Logic",
             "specific_error": "Incorrect output",
