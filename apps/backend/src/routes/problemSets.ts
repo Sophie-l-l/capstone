@@ -12,9 +12,13 @@ router.get("/class/:classId", authenticateToken, async (req: Request, res: Respo
     const { classId } = req.params;
     const userId = (req as any).user.userId;
 
+    if (!classId) {
+      return res.status(400).json({ message: "Class ID is required" });
+    }
+
     // Verify access to class
     const classData = await prisma.class.findUnique({
-      where: { id: classId },
+      where: { id: classId as string },
       include: {
         enrollments: {
           where: { studentId: userId }

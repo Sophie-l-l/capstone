@@ -97,8 +97,12 @@ router.get("/:id", authenticateToken, async (req: Request, res: Response) => {
     const userId = (req as any).user.userId;
     const userRole = (req as any).user.role;
 
+    if (!id) {
+      return res.status(400).json({ message: "Class ID is required" });
+    }
+
     const classData = await prisma.class.findUnique({
-      where: { id },
+      where: { id: id as string },
       include: {
         instructor: {
           select: { id: true, name: true, email: true }
@@ -155,12 +159,16 @@ router.post("/:id/enroll", authenticateToken, async (req: Request, res: Response
     const userId = (req as any).user.userId;
     const userRole = (req as any).user.role;
 
+    if (!id) {
+      return res.status(400).json({ message: "Class ID is required" });
+    }
+
     if (userRole !== "student") {
       return res.status(403).json({ message: "Only students can enroll in classes" });
     }
 
     const classData = await prisma.class.findUnique({
-      where: { id }
+      where: { id: id as string }
     });
 
     if (!classData) {
@@ -171,8 +179,8 @@ router.post("/:id/enroll", authenticateToken, async (req: Request, res: Response
     const existing = await prisma.classEnrollment.findUnique({
       where: {
         classId_studentId: {
-          classId: id,
-          studentId: userId
+          classId: id as string,
+          studentId: userId as string
         }
       }
     });
