@@ -19,25 +19,16 @@ const languageTemplates = {
 # Examples: collections, itertools, math, heapq, bisect
 from typing import List, Dict, Set, Optional
 
-def solve():
-    """
-    Write your solution here.
-    Read input using input() and print() your answer.
-    """
-    # Example: Read a single integer
-    # n = int(input())
-    
-    # Example: Read a list of integers
-    # nums = list(map(int, input().split()))
-    
-    # Write your code here
-    
-    # Example: Print result
-    # print(result)
-    pass
+# Read input
+# Example: n = int(input())
+# Example: nums = list(map(int, input().split()))
 
-# Call your function
-solve()`,
+# Write your solution here
+
+
+# Print output
+# Example: print(result)
+`,
 
   javascript: `/**
  * Write your solution here.

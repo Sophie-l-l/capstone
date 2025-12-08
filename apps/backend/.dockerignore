@@ -6,3 +6,19 @@ dist
 .env
 .env.*
 .DS_Store
+
+# Exclude large data files
+prisma/data/
+**/*.jsonl
+**/*.csv
+**/*.json.gz
+
+# Exclude test and script files
+*.test.js
+*.test.ts
+test-*.js
+scripts/
+
+# Exclude git
+.git/
+.gitignore

@@ -1,0 +1,39 @@
+# Ignore data files
+prisma/data/
+*.jsonl
+*.csv
+
+# Ignore node_modules (will be installed during build)
+node_modules/
+
+# Ignore development files
+*.log
+.env.local
+.env.development
+
+# Ignore git
+.git/
+.gitignore
+
+# Ignore build artifacts
+dist/
+*.tsbuildinfo
+
+# Ignore test files
+*.test.ts
+*.test.js
+test-*.js
+
+# Ignore documentation
+*.md
+!README.md
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore editor files
+.vscode/
+.idea/
+*.swp
+*.swo
