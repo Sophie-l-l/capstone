@@ -314,23 +314,31 @@ export default function InstructorDashboardPage() {
                             <CardDescription>Visual breakdown of performance tiers</CardDescription>
                           </CardHeader>
                           <CardContent>
-                            <ResponsiveContainer width="100%" height={200}>
+                            <ResponsiveContainer width="100%" height={250}>
                               <PieChart>
                                 <Pie
                                   data={performanceClusters}
                                   cx="50%"
                                   cy="50%"
-                                  labelLine={false}
-                                  label={({ name, count }) => `${name}: ${count}`}
-                                  outerRadius={80}
+                                  labelLine={{ stroke: '#888', strokeWidth: 1 }}
+                                  label={(entry) => {
+                                    return `${entry.name}: ${entry.count}`
+                                  }}
+                                  outerRadius={75}
                                   fill="#8884d8"
                                   dataKey="count"
+                                  minAngle={15}
                                 >
                                   {performanceClusters.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.color} />
                                   ))}
                                 </Pie>
                                 <Tooltip />
+                                <Legend 
+                                  verticalAlign="bottom" 
+                                  height={36}
+                                  wrapperStyle={{ fontSize: '12px' }}
+                                />
                               </PieChart>
                             </ResponsiveContainer>
                           </CardContent>

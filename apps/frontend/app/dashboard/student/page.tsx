@@ -943,47 +943,6 @@ export default function StudentDashboardPage() {
               </CardContent>
             </Card>
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Strengths & Weaknesses</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <h3 className="text-sm font-medium">Strengths</h3>
-                  <ul className="mt-2 space-y-1">
-                    {dedupedKCs.filter((k) => k.pKnown >= 0.7).length === 0 && (
-                      <li className="text-sm text-muted-foreground">No strong concepts yet</li>
-                    )}
-                    {dedupedKCs
-                      .filter((k) => k.pKnown >= 0.7)
-                      .map((k) => (
-                        <li key={k.kc} className="text-sm">
-                          {k.kc} — {Math.round(k.pKnown * 100)}%
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-medium">Weaknesses</h3>
-                  <ul className="mt-2 space-y-1">
-                    {dedupedKCs.filter((k) => k.pKnown < 0.4).length === 0 && (
-                      <li className="text-sm text-muted-foreground">No major weaknesses</li>
-                    )}
-                    {dedupedKCs
-                      .filter((k) => k.pKnown < 0.4)
-                      .map((k) => (
-                        <li key={k.kc} className="text-sm">
-                          {k.kc} — {Math.round(k.pKnown * 100)}%
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
         {/* Submissions dialog */}
         <Dialog open={submissionsOpen} onOpenChange={(v) => { if (!v) { setSubmissionsOpen(false) } }}>
