@@ -326,27 +326,6 @@ class ApiClient {
     return this.request(`/api/instructor/classes/${classId}/analytics`)
   }
 
-  async getClassAnalytics() {
-    if (shouldUseMock('analytics')) {
-      return Promise.resolve({ 
-        totalStudents: 45,
-        activeStudents: 38,
-        averageScore: 78.5,
-        totalSubmissions: 1247,
-        dailyActivity: [
-          { day: "Mon", submissions: 234, students: 89 },
-          { day: "Tue", submissions: 312, students: 102 },
-          { day: "Wed", submissions: 289, students: 95 },
-          { day: "Thu", submissions: 267, students: 88 },
-          { day: "Fri", submissions: 198, students: 76 },
-          { day: "Sat", submissions: 145, students: 54 },
-          { day: "Sun", submissions: 167, students: 62 }
-        ]
-      })
-    }
-    return this.request('/api/instructor/class-analytics')
-  }
-
   async getStudents() {
     if (shouldUseMock('analytics')) {
       return Promise.resolve({ 
