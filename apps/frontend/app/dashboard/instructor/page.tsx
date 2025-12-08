@@ -87,13 +87,15 @@ export default function InstructorDashboardPage() {
 
   const fetchClasses = async () => {
     try {
+      console.log('[Instructor Dashboard] Fetching classes...')
       const data = await apiClient.getInstructorClasses()
+      console.log('[Instructor Dashboard] Classes received:', data)
       setClasses(data || [])
       if (data && data.length > 0) {
         setSelectedClass(data[0].id)
       }
     } catch (error) {
-      console.error('Error fetching classes:', error)
+      console.error('[Instructor Dashboard] Error fetching classes:', error)
     } finally {
       setLoading(false)
     }
@@ -102,10 +104,12 @@ export default function InstructorDashboardPage() {
   const fetchAnalytics = async (classId: string) => {
     setAnalyticsLoading(true)
     try {
+      console.log('[Instructor Dashboard] Fetching analytics for class:', classId)
       const data = await apiClient.getClassAnalytics(classId)
+      console.log('[Instructor Dashboard] Analytics received:', data)
       setAnalytics(data)
     } catch (error) {
-      console.error('Error fetching analytics:', error)
+      console.error('[Instructor Dashboard] Error fetching analytics:', error)
     } finally {
       setAnalyticsLoading(false)
     }
