@@ -1,13 +1,12 @@
 const express = require("express");
-import type { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+const { PrismaClient } = require("@prisma/client");
 const { authenticateToken } = require("../middleware/auth");
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 // GET /api/submissions - Get submissions for the authenticated user
-router.get("/", authenticateToken, async (req: Request, res: Response) => {
+router.get("/", authenticateToken, async (req: any, res: any) => {
   try {
     const userId = (req as any).user.userId;
     const { problemId, status, page = "1", limit = "100" } = req.query;
