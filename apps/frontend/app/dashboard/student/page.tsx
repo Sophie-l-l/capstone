@@ -458,7 +458,7 @@ export default function StudentDashboardPage() {
               <CardHeader>
                 <CardTitle>Accuracy by Language</CardTitle>
               </CardHeader>
-              <CardContent className="h-64">
+              <CardContent className="h-72 flex items-center justify-center">
                 {accuracyByLanguage.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No data</p>
                 ) : (() => {
@@ -469,24 +469,24 @@ export default function StudentDashboardPage() {
                   })
                   
                   return (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={accuracyByLanguage} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                    <ResponsiveContainer width="95%" height="95%">
+                      <BarChart data={accuracyByLanguage} margin={{ top: 25, right: 15, left: 0, bottom: 5 }}>
                         <defs>
                           <linearGradient id="colorLanguage" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
                             <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.3}/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                         <XAxis 
                           dataKey="language" 
-                          tick={{ fontSize: 12, fill: '#6B7280' }}
+                          tick={{ fontSize: 11, fill: '#6B7280' }}
                           tickLine={{ stroke: '#E5E7EB' }}
                         />
                         <YAxis 
                           domain={[0, 1]} 
                           tickFormatter={(v) => `${Math.round((v as number) * 100)}%`}
-                          tick={{ fontSize: 12, fill: '#6B7280' }}
+                          tick={{ fontSize: 11, fill: '#6B7280' }}
                           tickLine={{ stroke: '#E5E7EB' }}
                         />
                         <Tooltip 
@@ -496,8 +496,16 @@ export default function StudentDashboardPage() {
                         <Bar 
                           dataKey="accuracy" 
                           fill="url(#colorLanguage)" 
-                          radius={[8, 8, 0, 0]}
-                          label={{ position: 'top', fontSize: 11, fill: '#3B82F6' }}
+                          radius={[6, 6, 0, 0]}
+                          label={{
+                            position: 'top',
+                            fontSize: 10,
+                            fill: '#3B82F6',
+                            formatter: (value: number) => {
+                              const pct = Math.round(value * 100)
+                              return pct >= 10 ? `${pct}%` : `${pct}%`
+                            }
+                          }}
                         />
                       </BarChart>
                     </ResponsiveContainer>
@@ -510,28 +518,28 @@ export default function StudentDashboardPage() {
               <CardHeader>
                 <CardTitle>Accuracy by Topic</CardTitle>
               </CardHeader>
-              <CardContent className="h-64">
+              <CardContent className="h-72 flex items-center justify-center">
                 {accuracyByTopic.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No data</p>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={accuracyByTopic} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+                  <ResponsiveContainer width="95%" height="95%">
+                    <BarChart data={accuracyByTopic} margin={{ top: 25, right: 15, left: 0, bottom: 5 }}>
                       <defs>
                         <linearGradient id="colorTopic" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
                           <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.3}/>
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                       <XAxis 
                         dataKey="topic" 
-                        tick={{ fontSize: 12, fill: '#6B7280' }}
+                        tick={{ fontSize: 11, fill: '#6B7280' }}
                         tickLine={{ stroke: '#E5E7EB' }}
                       />
                       <YAxis 
                         domain={[0, 1]} 
                         tickFormatter={(v) => `${Math.round((v as number) * 100)}%`}
-                        tick={{ fontSize: 12, fill: '#6B7280' }}
+                        tick={{ fontSize: 11, fill: '#6B7280' }}
                         tickLine={{ stroke: '#E5E7EB' }}
                       />
                       <Tooltip 
@@ -541,8 +549,16 @@ export default function StudentDashboardPage() {
                       <Bar 
                         dataKey="accuracy" 
                         fill="url(#colorTopic)" 
-                        radius={[8, 8, 0, 0]}
-                        label={{ position: 'top', fontSize: 11, fill: '#8B5CF6' }}
+                        radius={[6, 6, 0, 0]}
+                        label={{
+                          position: 'top',
+                          fontSize: 10,
+                          fill: '#8B5CF6',
+                          formatter: (value: number) => {
+                            const pct = Math.round(value * 100)
+                            return pct >= 10 ? `${pct}%` : `${pct}%`
+                          }
+                        }}
                       />
                     </BarChart>
                   </ResponsiveContainer>
@@ -598,7 +614,7 @@ export default function StudentDashboardPage() {
         <CardHeader>
           <CardTitle>Top Error Types</CardTitle>
         </CardHeader>
-              <CardContent className="h-64">
+              <CardContent className="h-72 flex items-center justify-center">
                 {errorLoading ? (
                   <p className="text-sm text-muted-foreground">Loading error analytics...</p>
                 ) : !errorData || errorData.topErrors.length === 0 ? (
@@ -606,42 +622,59 @@ export default function StudentDashboardPage() {
                 ) : (() => {
                   const totalErrors = errorData.topErrors.reduce((sum, item) => sum + item.count, 0)
                   
+                  // Extract surface error type and assign colors
+                  const surfaceErrorColors: Record<string, string> = {
+                    'Lexical': '#3B82F6',
+                    'Syntax': '#8B5CF6', 
+                    'Semantic': '#10B981',
+                    'Functional': '#F59E0B',
+                    'Logic': '#EF4444',
+                    'Runtime': '#EC4899'
+                  }
+                  
+                  const dataWithColors = errorData.topErrors.map(item => {
+                    const surfaceType = item.label.split(':')[0] || item.label.split(' ')[0]
+                    const color = surfaceErrorColors[surfaceType] || '#6B7280'
+                    return { ...item, fill: color, surfaceType }
+                  })
+                  
                   return (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={errorData.topErrors} margin={{ top: 20, right: 30, left: 10, bottom: 80 }}>
-                        <defs>
-                          <linearGradient id="colorError" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#EF4444" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#EF4444" stopOpacity={0.3}/>
-                          </linearGradient>
-                        </defs>
+                    <ResponsiveContainer width="95%" height="95%">
+                      <BarChart data={dataWithColors} margin={{ top: 25, right: 15, left: 5, bottom: 20 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                         <XAxis 
                           dataKey="label" 
-                          angle={-45} 
-                          textAnchor="end" 
-                          height={90}
-                          interval={0}
-                          tick={{ fontSize: 10, fill: '#6B7280' }}
-                          tickLine={{ stroke: '#E5E7EB' }}
-                          tickMargin={8}
+                          tick={false}
+                          tickLine={false}
+                          height={10}
                         />
                         <YAxis 
                           tick={{ fontSize: 11, fill: '#6B7280' }}
                           tickLine={{ stroke: '#E5E7EB' }}
-                          width={40}
+                          width={35}
                         />
                         <Tooltip 
-                          formatter={(value: any) => [`${value} errors (${((value / totalErrors) * 100).toFixed(1)}%)`, 'Count']}
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '8px 12px' }}
+                          position={{ y: 0 }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload
+                              return (
+                                <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
+                                  <p className="font-medium text-sm mb-1">{data.label}</p>
+                                  <p className="text-xs text-gray-600">
+                                    {data.count} errors ({((data.count / totalErrors) * 100).toFixed(1)}%)
+                                  </p>
+                                </div>
+                              )
+                            }
+                            return null
+                          }}
                           cursor={{ fill: '#F3F4F6', opacity: 0.3 }}
                         />
                         <Bar 
                           dataKey="count" 
-                          fill="url(#colorError)" 
-                          radius={[6, 6, 0, 0]}
-                          maxBarSize={60}
-                          label={{ position: 'top', fontSize: 10, fill: '#EF4444', fontWeight: 600 }}
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={45}
                         />
                       </BarChart>
                     </ResponsiveContainer>
@@ -657,7 +690,7 @@ export default function StudentDashboardPage() {
               <CardHeader>
                 <CardTitle>Surface Error Categories</CardTitle>
               </CardHeader>
-              <CardContent className="h-64">
+              <CardContent className="h-72 flex items-center justify-center">
                 {errorLoading ? (
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 ) : !errorData || errorData.recentErrors.length === 0 ? (
@@ -675,36 +708,49 @@ export default function StudentDashboardPage() {
                   const totalSurfaceErrors = surfaceData.reduce((sum, item) => sum + item.count, 0)
                   
                   return (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={surfaceData} margin={{ top: 20, right: 20, left: 10, bottom: 75 }}>
+                    <ResponsiveContainer width="95%" height="95%">
+                      <BarChart data={surfaceData} margin={{ top: 25, right: 15, left: 5, bottom: 20 }}>
                         <defs>
                           <linearGradient id="colorSurface" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
                             <stop offset="95%" stopColor="#10B981" stopOpacity={0.3}/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                         <XAxis 
                           dataKey="name" 
-                          angle={-45} 
-                          textAnchor="end" 
-                          height={80}
-                          tick={{ fontSize: 10, fill: '#6B7280' }}
-                          tickLine={{ stroke: '#E5E7EB' }}
+                          tick={false}
+                          tickLine={false}
+                          height={10}
                         />
                         <YAxis 
-                          tick={{ fontSize: 12, fill: '#6B7280' }}
+                          tick={{ fontSize: 11, fill: '#6B7280' }}
                           tickLine={{ stroke: '#E5E7EB' }}
+                          width={35}
                         />
                         <Tooltip 
-                          formatter={(value: any) => [`${value} (${((value / totalSurfaceErrors) * 100).toFixed(1)}%)`, 'Count']} 
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
+                          position={{ y: 0 }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload
+                              return (
+                                <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
+                                  <p className="font-medium text-sm mb-1">{data.name}</p>
+                                  <p className="text-xs text-gray-600">
+                                    {data.count} errors ({((data.count / totalSurfaceErrors) * 100).toFixed(1)}%)
+                                  </p>
+                                </div>
+                              )
+                            }
+                            return null
+                          }}
+                          cursor={{ fill: '#F3F4F6', opacity: 0.3 }}
                         />
                         <Bar 
                           dataKey="count" 
                           fill="url(#colorSurface)" 
-                          radius={[6, 6, 0, 0]}
-                          label={{ position: 'top', fontSize: 10, fill: '#10B981' }} 
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={45}
                         />
                       </BarChart>
                     </ResponsiveContainer>
@@ -717,7 +763,7 @@ export default function StudentDashboardPage() {
               <CardHeader>
                 <CardTitle>Cognitive Causes</CardTitle>
               </CardHeader>
-              <CardContent className="h-64 flex items-center justify-center">
+              <CardContent className="h-72 flex items-center justify-center">
                 {errorLoading ? (
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 ) : !errorData || errorData.recentErrors.length === 0 ? (
@@ -736,14 +782,16 @@ export default function StudentDashboardPage() {
                   const cognitiveColors = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#EF4444', '#10B981']
                   
                   return (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart margin={{ top: 0, right: 0, bottom: 50, left: 0 }}>
                         <Pie 
                           data={cognitiveData} 
                           dataKey="count" 
                           nameKey="name" 
-                          outerRadius={80}
-                          innerRadius={40}
+                          cx="50%"
+                          cy="45%"
+                          outerRadius={70}
+                          innerRadius={35}
                           paddingAngle={2}
                           label={(entry: any) => `${entry.count}`}
                           labelLine={false}
@@ -758,9 +806,9 @@ export default function StudentDashboardPage() {
                         />
                         <Legend 
                           verticalAlign="bottom" 
-                          height={36}
+                          height={50}
                           formatter={(value) => value.replace(/_/g, ' ')}
-                          wrapperStyle={{ fontSize: '11px' }}
+                          wrapperStyle={{ fontSize: '10px', paddingTop: '15px' }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -773,7 +821,7 @@ export default function StudentDashboardPage() {
               <CardHeader>
                 <CardTitle>Bloom Taxonomy Levels</CardTitle>
               </CardHeader>
-              <CardContent className="h-64">
+              <CardContent className="h-72 flex items-center justify-center">
                 {errorLoading ? (
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 ) : !errorData || errorData.recentErrors.length === 0 ? (
@@ -794,36 +842,49 @@ export default function StudentDashboardPage() {
                   const totalBloom = bloomData.reduce((sum, item) => sum + item.count, 0)
                   
                   return (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={bloomData} margin={{ top: 20, right: 20, left: 10, bottom: 75 }}>
+                    <ResponsiveContainer width="95%" height="95%">
+                      <BarChart data={bloomData} margin={{ top: 25, right: 15, left: 5, bottom: 20 }}>
                         <defs>
                           <linearGradient id="colorBloom" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
                             <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.3}/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" opacity={0.5} />
                         <XAxis 
                           dataKey="level" 
-                          angle={-45} 
-                          textAnchor="end" 
-                          height={80}
-                          tick={{ fontSize: 10, fill: '#6B7280' }}
-                          tickLine={{ stroke: '#E5E7EB' }}
+                          tick={false}
+                          tickLine={false}
+                          height={10}
                         />
                         <YAxis 
-                          tick={{ fontSize: 12, fill: '#6B7280' }}
+                          tick={{ fontSize: 11, fill: '#6B7280' }}
                           tickLine={{ stroke: '#E5E7EB' }}
+                          width={35}
                         />
                         <Tooltip 
-                          formatter={(value: any) => [`${value} (${((value / totalBloom) * 100).toFixed(1)}%)`, 'Count']} 
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}
+                          position={{ y: 0 }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload
+                              return (
+                                <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
+                                  <p className="font-medium text-sm mb-1">{data.level}</p>
+                                  <p className="text-xs text-gray-600">
+                                    {data.count} errors ({((data.count / totalBloom) * 100).toFixed(1)}%)
+                                  </p>
+                                </div>
+                              )
+                            }
+                            return null
+                          }}
+                          cursor={{ fill: '#F3F4F6', opacity: 0.3 }}
                         />
                         <Bar 
                           dataKey="count" 
                           fill="url(#colorBloom)" 
-                          radius={[6, 6, 0, 0]}
-                          label={{ position: 'top', fontSize: 10, fill: '#8B5CF6' }} 
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={45}
                         />
                       </BarChart>
                     </ResponsiveContainer>
