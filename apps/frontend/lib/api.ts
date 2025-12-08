@@ -238,16 +238,26 @@ class ApiClient {
   }
 
   // Student-specific endpoints
-  async getStudentDashboard(studentId: string) {
-    return this.request(`/api/students/${studentId}/dashboard`)
-  }
-
   async getStudentSubmissions(studentId: string, page: number = 1, limit: number = 20) {
     return this.request(`/api/students/${studentId}/submissions?page=${page}&limit=${limit}`)
   }
 
-  async getRecommendations(userId: string, limit: number = 10) {
-    return this.request(`/api/students/${userId}/recommendations?limit=${limit}`)
+  async getRecommendations(userId?: string, limit: number = 10) {
+    if (shouldUseMock('analytics')) {
+      return Promise.resolve({ 
+        recommendedProblems: mockProblems.slice(0, 3).map(p => ({
+          problemId: p.id,
+          title: p.title,
+          difficulty: p.difficulty,
+          reason: "Based on your current skill level",
+          confidence: 0.8
+        }))
+      })
+    }
+    if (userId) {
+      return this.request(`/api/students/${userId}/recommendations?limit=${limit}`)
+    }
+    return this.request('/api/recommendations')
   }
 
   // Analytics endpoints
@@ -272,21 +282,6 @@ class ApiClient {
     return this.request('/api/users/achievements')
   }
 
-  async getRecommendations() {
-    if (shouldUseMock('analytics')) {
-      return Promise.resolve({ 
-        recommendedProblems: mockProblems.slice(0, 3).map(p => ({
-          problemId: p.id,
-          title: p.title,
-          difficulty: p.difficulty,
-          reason: "Based on your current skill level",
-          confidence: 0.8
-        }))
-      })
-    }
-    return this.request('/api/recommendations')
-  }
-
   // Student dashboard endpoint
   async getStudentDashboard(studentId: string) {
     if (shouldUseMock('analytics')) {
@@ -295,7 +290,7 @@ class ApiClient {
           id: studentId,
           name: mockUser.name,
           email: mockUser.email,
-          totalSubmissions: mockUserStats.totalSubmissions,
+          totalSubmissions: mockUserStats.totalProblems,
           accuracy: mockUserStats.successRate / 100
         },
         accuracyByLanguage: [
@@ -329,10 +324,6 @@ class ApiClient {
   // Instructor endpoints
   async getInstructorClasses() {
     return this.request('/api/instructor/classes')
-  }
-
-  async getClassDetails(classId: string) {
-    return this.request(`/api/instructor/classes/${classId}`)
   }
 
   async getClassAnalytics(classId: string) {

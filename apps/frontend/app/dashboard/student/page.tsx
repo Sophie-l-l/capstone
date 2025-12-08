@@ -501,9 +501,20 @@ export default function StudentDashboardPage() {
                             position: 'top',
                             fontSize: 10,
                             fill: '#3B82F6',
-                            formatter: (value: number) => {
+                            content: (props: any) => {
+                              const { x, y, width, value } = props
                               const pct = Math.round(value * 100)
-                              return pct >= 10 ? `${pct}%` : `${pct}%`
+                              return (
+                                <text 
+                                  x={x + width / 2} 
+                                  y={y - 5} 
+                                  fill="#3B82F6" 
+                                  fontSize={10} 
+                                  textAnchor="middle"
+                                >
+                                  {pct}%
+                                </text>
+                              )
                             }
                           }}
                         />
@@ -554,9 +565,20 @@ export default function StudentDashboardPage() {
                           position: 'top',
                           fontSize: 10,
                           fill: '#8B5CF6',
-                          formatter: (value: number) => {
+                          content: (props: any) => {
+                            const { x, y, width, value } = props
                             const pct = Math.round(value * 100)
-                            return pct >= 10 ? `${pct}%` : `${pct}%`
+                            return (
+                              <text 
+                                x={x + width / 2} 
+                                y={y - 5} 
+                                fill="#8B5CF6" 
+                                fontSize={10} 
+                                textAnchor="middle"
+                              >
+                                {pct}%
+                              </text>
+                            )
                           }
                         }}
                       />
@@ -686,8 +708,7 @@ export default function StudentDashboardPage() {
                           label={{
                             position: 'top',
                             fontSize: 11,
-                            fill: '#374151',
-                            formatter: (value: number) => value
+                            fill: '#374151'
                           }}
                         />
                       </BarChart>
@@ -770,8 +791,7 @@ export default function StudentDashboardPage() {
                           label={{
                             position: 'top',
                             fontSize: 11,
-                            fill: '#374151',
-                            formatter: (value: number) => value
+                            fill: '#374151'
                           }}
                         />
                       </BarChart>
@@ -912,8 +932,7 @@ export default function StudentDashboardPage() {
                           label={{
                             position: 'top',
                             fontSize: 11,
-                            fill: '#374151',
-                            formatter: (value: number) => value
+                            fill: '#374151'
                           }}
                         />
                       </BarChart>

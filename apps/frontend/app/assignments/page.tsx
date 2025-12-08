@@ -92,8 +92,8 @@ export default function AssignmentsPage() {
       })
   }, [])
 
-  const formatDueDate = (dueDate: string | null) => {
-    if (!dueDate) return "No due date"
+  const formatDueDate = (dueDate: string | null): { text: string; color: string } => {
+    if (!dueDate) return { text: "No due date", color: "text-muted-foreground" }
     const date = new Date(dueDate)
     const now = new Date()
     const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))

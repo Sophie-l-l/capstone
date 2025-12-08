@@ -322,11 +322,9 @@ export default function InstructorDashboardPage() {
                                   cy="45%"
                                   labelLine={{ 
                                     stroke: '#888', 
-                                    strokeWidth: 1,
-                                    length: 20,
-                                    type: 'polyline'
+                                    strokeWidth: 1
                                   }}
-                                  label={(entry) => {
+                                  label={(entry: any) => {
                                     const total = performanceClusters.reduce((sum, item) => sum + item.count, 0)
                                     const percent = ((entry.count / total) * 100).toFixed(0)
                                     return `${percent}%`
