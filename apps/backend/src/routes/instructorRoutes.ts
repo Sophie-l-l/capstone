@@ -276,4 +276,73 @@ router.get('/students', authenticateToken, requireInstructor, async (req: any, r
   }
 });
 
+// POST /api/instructor/admin/sync-knowledge-components
+// Admin endpoint to flush and sync KnowledgeComponent table from all problems
+// WARNING: This will delete all BKT states and recreate them on next submissions
+router.post('/admin/sync-knowledge-components', async (req: Request, res: Response) => {
+  try {
+    // Step 1: Get all unique KCs from problems
+    const problems = await prisma.problem.findMany({
+      select: { id: true, title: true, knowledgeComponents: true }
+    });
+
+    // Collect all unique KCs
+    const allKCs = new Set<string>();
+    problems.forEach((p: { knowledgeComponents: string[] }) => {
+      p.knowledgeComponents.forEach((kc: string) => {
+        if (kc && kc.trim()) {
+          allKCs.add(kc.trim());
+        }
+      });
+    });
+
+    // Step 2: Check current KnowledgeComponent table
+    const existingKCs = await prisma.knowledgeComponent.findMany();
+    
+    // Step 3: Delete all BKTState records first (foreign key constraint)
+    const bktCount = await prisma.bKTState.count();
+    if (bktCount > 0) {
+      await prisma.bKTState.deleteMany({});
+    }
+
+    // Step 4: Delete all existing KCs
+    const deleteResult = await prisma.knowledgeComponent.deleteMany({});
+
+    // Step 5: Insert all KCs from problems
+    const created: string[] = [];
+    for (const kcName of Array.from(allKCs).sort()) {
+      await prisma.knowledgeComponent.create({
+        data: {
+          name: kcName,
+          description: `Knowledge component: ${kcName}`
+        }
+      });
+      created.push(kcName);
+    }
+
+    // Step 6: Verify the sync
+    const finalKCs = await prisma.knowledgeComponent.findMany({
+      orderBy: { name: 'asc' }
+    });
+
+    res.json({
+      message: "✅ KnowledgeComponent table flushed and synced successfully",
+      stats: {
+        totalProblems: problems.length,
+        uniqueKCsInProblems: allKCs.size,
+        previousKCsInDB: existingKCs.length,
+        currentKCsInDB: finalKCs.length,
+        bktStatesCleared: bktCount,
+        created: created
+      },
+      knowledgeComponents: finalKCs.map((kc: { name: string }) => kc.name),
+      note: "BKT states will be automatically recreated when students submit solutions"
+    });
+  } catch (error: any) {
+    console.error('Error syncing knowledge components:', error);
+    res.status(500).json({ error: 'Failed to sync knowledge components', message: error?.message });
+  }
+});
+
 export default router;
+
