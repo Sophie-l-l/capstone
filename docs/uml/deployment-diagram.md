@@ -42,6 +42,10 @@ Deployment_Node(rapidapi, "RapidAPI", "External API Service") {
     Container(judge0, "Judge0 CE", "Code Execution Engine", "Sandboxed code execution for 40+ languages")
 }
 
+Deployment_Node(openai, "OpenAI", "External AI Service") {
+    Container(gemini, "Gemini API", "GPT-4", "Large language model for error classification")
+}
+
 Deployment_Node(github, "GitHub", "Version Control") {
     Container(repo, "Source Repository", "Git", "Source code and version control")
 }
@@ -55,6 +59,7 @@ Rel(backend, database, "Read/Write", "PostgreSQL Protocol / Private IP")
 Rel(backend, judge0, "Execute code", "HTTPS/REST")
 Rel(backend, secret_mgr, "Fetch secrets", "Secret Manager API")
 Rel(ai_service, database, "Read problems", "PostgreSQL Protocol / Private IP")
+Rel(ai_service, gemini, "LLM inference", "HTTPS/REST")
 
 Rel(repo, cicd, "Trigger on commit", "Webhook")
 Rel(cicd, cloudrun_backend, "Deploy", "Cloud Run API")

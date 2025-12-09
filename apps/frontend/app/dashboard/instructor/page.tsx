@@ -469,53 +469,6 @@ export default function InstructorDashboardPage() {
                           </div>
                         </CardContent>
                       </Card>
-
-                      {/* AI Insights */}
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Brain className="h-5 w-5" />
-                            AI-Generated Insights
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {analytics.summary.atRiskStudents > 0 && (
-                            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-                              <p className="text-sm">
-                                <strong>⚠️ Attention Needed:</strong> {analytics.summary.atRiskStudents} student(s) showing signs of struggle 
-                                (low acceptance rate or mastery). Consider scheduling one-on-one sessions.
-                              </p>
-                            </div>
-                          )}
-                          
-                          {kcMasteryData.length > 0 && kcMasteryData[0].mastery < 30 && (
-                            <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
-                              <p className="text-sm">
-                                <strong>📚 Topic Focus:</strong> The class is struggling with "{kcMasteryData[0].kc}" 
-                                (avg {kcMasteryData[0].mastery}% mastery). Consider dedicating more time to this topic.
-                              </p>
-                            </div>
-                          )}
-
-                          {classAvgAcceptance >= 70 && (
-                            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                              <p className="text-sm">
-                                <strong>🎉 Great Work:</strong> Class average acceptance rate is {classAvgAcceptance}%! 
-                                Students are performing well overall.
-                              </p>
-                            </div>
-                          )}
-
-                          {analytics.summary.totalSubmissions / (analytics.summary.totalStudents || 1) > 50 && (
-                            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                              <p className="text-sm">
-                                <strong>💪 High Engagement:</strong> Students are very active with an average of{' '}
-                                {Math.round(analytics.summary.totalSubmissions / (analytics.summary.totalStudents || 1))} submissions per student!
-                              </p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
                     </>
                   )}
                 </TabsContent>
