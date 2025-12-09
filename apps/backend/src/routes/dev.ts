@@ -231,7 +231,7 @@ router.post("/flush-and-sync-kcs", async (req: any, res: any) => {
 
     // Collect all unique KCs
     const allKCs = new Set<string>();
-    problems.forEach((p: any) => {
+    problems.forEach((p: { knowledgeComponents: string[] }) => {
       p.knowledgeComponents.forEach((kc: string) => {
         if (kc && kc.trim()) {
           allKCs.add(kc.trim());
@@ -278,7 +278,7 @@ router.post("/flush-and-sync-kcs", async (req: any, res: any) => {
         bktStatesCleared: bktCount,
         created: created
       },
-      knowledgeComponents: finalKCs.map((kc: any) => kc.name),
+      knowledgeComponents: finalKCs.map((kc: { name: string }) => kc.name),
       note: "BKT states will be automatically recreated when students submit solutions"
     });
   } catch (err: any) {
