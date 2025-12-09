@@ -74,7 +74,7 @@ export async function classifyWithAI(
     const response = await axios.post<AIClassifyResponse>(
       `${AI_SERVICE_URL}/errors/classify`,
       payload,
-      { timeout: 7000 }
+      { timeout: 30000 } // 30 seconds to handle cold starts
     );
     console.log("🎯 AI Service Response:", JSON.stringify({
       surface_error: response.data.surface_error,
