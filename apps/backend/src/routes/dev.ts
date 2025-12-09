@@ -220,3 +220,71 @@ router.get("/check-submissions", async (_req: any, res: any) => {
   }
 });
 
+// POST /api/dev/flush-and-sync-kcs
+// Flushes KnowledgeComponent table and repopulates from all problems
+router.post("/flush-and-sync-kcs", async (req: any, res: any) => {
+  try {
+    // Step 1: Get all unique KCs from problems
+    const problems = await prisma.problem.findMany({
+      select: { id: true, title: true, knowledgeComponents: true }
+    });
+
+    // Collect all unique KCs
+    const allKCs = new Set<string>();
+    problems.forEach((p: any) => {
+      p.knowledgeComponents.forEach((kc: string) => {
+        if (kc && kc.trim()) {
+          allKCs.add(kc.trim());
+        }
+      });
+    });
+
+    // Step 2: Check current KnowledgeComponent table
+    const existingKCs = await prisma.knowledgeComponent.findMany();
+    
+    // Step 3: Delete all BKTState records first (foreign key constraint)
+    const bktCount = await prisma.bKTState.count();
+    if (bktCount > 0) {
+      await prisma.bKTState.deleteMany({});
+    }
+
+    // Step 4: Delete all existing KCs
+    const deleteResult = await prisma.knowledgeComponent.deleteMany({});
+
+    // Step 5: Insert all KCs from problems
+    const created: string[] = [];
+    for (const kcName of Array.from(allKCs).sort()) {
+      await prisma.knowledgeComponent.create({
+        data: {
+          name: kcName,
+          description: `Knowledge component: ${kcName}`
+        }
+      });
+      created.push(kcName);
+    }
+
+    // Step 6: Verify the sync
+    const finalKCs = await prisma.knowledgeComponent.findMany({
+      orderBy: { name: 'asc' }
+    });
+
+    return res.json({
+      message: "✅ KnowledgeComponent table flushed and synced successfully",
+      stats: {
+        totalProblems: problems.length,
+        uniqueKCsInProblems: allKCs.size,
+        previousKCsInDB: existingKCs.length,
+        currentKCsInDB: finalKCs.length,
+        bktStatesCleared: bktCount,
+        created: created
+      },
+      knowledgeComponents: finalKCs.map((kc: any) => kc.name),
+      note: "BKT states will be automatically recreated when students submit solutions"
+    });
+  } catch (err: any) {
+    console.error("/api/dev/flush-and-sync-kcs failed:", err);
+    return res.status(500).json({ message: err?.message || "Unexpected error" });
+  }
+});
+
+
