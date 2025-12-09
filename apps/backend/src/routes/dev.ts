@@ -167,7 +167,7 @@ router.get("/check-bkt-states", async (req: any, res: any) => {
 });
 
 // GET /api/dev/check-submissions - Check recent submissions and BKT updates
-router.get("/check-submissions", async (_req, res) => {
+router.get("/check-submissions", async (_req: any, res: any) => {
   try {
     // Get recent submissions with problem KCs
     const submissions = await prisma.submission.findMany({
@@ -197,14 +197,14 @@ router.get("/check-submissions", async (_req, res) => {
         totalBKTStates: bktStates.length,
         totalKCs: allKCs.length
       },
-      recentSubmissions: submissions.map(s => ({
+      recentSubmissions: submissions.map((s: any) => ({
         user: s.user.name,
         problem: s.problem.title,
         status: s.status,
         problemKCs: s.problem.knowledgeComponents,
         submittedAt: s.submittedAt
       })),
-      bktStates: bktStates.map(b => ({
+      bktStates: bktStates.map((b: any) => ({
         user: b.user.name,
         kc: b.kc.name,
         pKnown: `${(b.pKnown * 100).toFixed(1)}%`,
@@ -212,7 +212,7 @@ router.get("/check-submissions", async (_req, res) => {
         corrects: b.corrects,
         lastUpdated: b.lastUpdated
       })),
-      allKCs: allKCs.map(kc => kc.name)
+      allKCs: allKCs.map((kc: any) => kc.name)
     });
   } catch (err: any) {
     console.error("/api/dev/check-submissions failed:", err);
