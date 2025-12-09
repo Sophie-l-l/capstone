@@ -115,3 +115,108 @@ router.post("/create-submission", async (req: any, res: any) => {
     return res.status(500).json({ message: err?.message || "Unexpected error" });
   }
 });
+
+// GET /api/dev/check-bkt-states
+// Returns all BKT states and Knowledge Components for debugging
+router.get("/check-bkt-states", async (req: any, res: any) => {
+  try {
+    const kcs = await prisma.knowledgeComponent.findMany({
+      select: { id: true, name: true }
+    });
+    
+    const bktStates = await prisma.bKTState.findMany({
+      include: {
+        kc: { select: { name: true } },
+        user: { select: { name: true, email: true } }
+      }
+    });
+    
+    const users = await prisma.user.findMany({
+      select: { id: true, name: true, email: true, role: true }
+    });
+    
+    const problems = await prisma.problem.findMany({
+      select: { id: true, title: true, knowledgeComponents: true }
+    });
+    
+    return res.json({
+      summary: {
+        totalKCs: kcs.length,
+        totalBKTStates: bktStates.length,
+        totalUsers: users.length,
+        totalProblems: problems.length
+      },
+      knowledgeComponents: kcs,
+      bktStates: bktStates.map(b => ({
+        userId: b.userId,
+        userName: b.user.name,
+        kc: b.kc.name,
+        pKnown: b.pKnown,
+        pKnownPercent: `${(b.pKnown * 100).toFixed(1)}%`
+      })),
+      users: users,
+      problemKCs: problems.map(p => ({
+        title: p.title,
+        kcs: p.knowledgeComponents
+      }))
+    });
+  } catch (err: any) {
+    console.error("/api/dev/check-bkt-states failed:", err);
+    return res.status(500).json({ message: err?.message || "Unexpected error" });
+  }
+});
+
+// GET /api/dev/check-submissions - Check recent submissions and BKT updates
+router.get("/check-submissions", async (_req, res) => {
+  try {
+    // Get recent submissions with problem KCs
+    const submissions = await prisma.submission.findMany({
+      include: {
+        user: { select: { name: true, email: true } },
+        problem: { select: { title: true, knowledgeComponents: true } }
+      },
+      orderBy: { submittedAt: 'desc' },
+      take: 20
+    });
+
+    // Get all BKT states
+    const bktStates = await prisma.bKTState.findMany({
+      include: {
+        user: { select: { name: true } },
+        kc: { select: { name: true } }
+      },
+      orderBy: { lastUpdated: 'desc' }
+    });
+
+    // Get all KCs
+    const allKCs = await prisma.knowledgeComponent.findMany();
+
+    return res.json({
+      summary: {
+        totalSubmissions: submissions.length,
+        totalBKTStates: bktStates.length,
+        totalKCs: allKCs.length
+      },
+      recentSubmissions: submissions.map(s => ({
+        user: s.user.name,
+        problem: s.problem.title,
+        status: s.status,
+        problemKCs: s.problem.knowledgeComponents,
+        submittedAt: s.submittedAt
+      })),
+      bktStates: bktStates.map(b => ({
+        user: b.user.name,
+        kc: b.kc.name,
+        pKnown: `${(b.pKnown * 100).toFixed(1)}%`,
+        attempts: b.attempts,
+        corrects: b.corrects,
+        lastUpdated: b.lastUpdated
+      })),
+      allKCs: allKCs.map(kc => kc.name)
+    });
+  } catch (err: any) {
+    console.error("/api/dev/check-submissions failed:", err);
+    return res.status(500).json({ message: err?.message || "Unexpected error" });
+  }
+});
+
