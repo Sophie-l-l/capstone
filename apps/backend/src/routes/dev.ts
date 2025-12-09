@@ -147,7 +147,7 @@ router.get("/check-bkt-states", async (req: any, res: any) => {
         totalProblems: problems.length
       },
       knowledgeComponents: kcs,
-      bktStates: bktStates.map(b => ({
+      bktStates: bktStates.map((b: any) => ({
         userId: b.userId,
         userName: b.user.name,
         kc: b.kc.name,
@@ -155,7 +155,7 @@ router.get("/check-bkt-states", async (req: any, res: any) => {
         pKnownPercent: `${(b.pKnown * 100).toFixed(1)}%`
       })),
       users: users,
-      problemKCs: problems.map(p => ({
+      problemKCs: problems.map((p: any) => ({
         title: p.title,
         kcs: p.knowledgeComponents
       }))
