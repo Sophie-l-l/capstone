@@ -502,9 +502,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Authors
 
-**Sophie Liu**  
+**Sophie Lin** and **Yanlin Wu**  
 Computer Science Capstone Project 2025  
-University of British Columbia
+New York University Abu Dhabi
 
 ---
 
