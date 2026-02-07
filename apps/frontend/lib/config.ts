@@ -1,10 +1,7 @@
 // Configuration utility for switching between mock and real data
 export const config = {
   // API Configuration
-  apiUrl: process.env.NEXT_PUBLIC_API_URL ||
-    (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-      ? 'https://educode-backend-162585155042.us-central1.run.app'
-      : 'http://localhost:3001'),
+  apiUrl: process.env.NEXT_PUBLIC_API_URL || 'https://educode-backend-162585155042.us-central1.run.app',
   
   // Feature Flags for Development
   useMockData: process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true',
