@@ -520,10 +520,11 @@ New York University Abu Dhabi
 
 ## 📚 Documentation
 
-- [Data Flow Analysis](./DATA_FLOW_ANALYSIS.md) - Complete request/response flow
-- [Starter Code Comparison](./STARTER_CODE_ANALYSIS.md) - Template design philosophy
-- [Deployment Plan](./DEPLOYMENT_PLAN_GCP.md) - Infrastructure setup
-- [Error Classification Pipeline](./ERROR_CLASSIFICATION_PIPELINE.md) - AI service details
+- [Data Flow Analysis](./DATA_FLOW_ANALYSIS.md) — Complete request/response flow
+- [Error Classification Pipeline](./ERROR_CLASSIFICATION_PIPELINE.md) — AI service architecture
+- [BKT Report](./BKT_REPORT_SUMMARY.md) — Bayesian Knowledge Tracing analysis
+- [Deployment Plan](./DEPLOYMENT_PLAN_GCP.md) — Google Cloud infrastructure setup
+- [Prompt Engineering Analysis](./PROMPT_ENGINEERING_ANALYSIS.md) — LLM prompt design
 
 ---
 
@@ -547,4 +548,4 @@ New York University Abu Dhabi
 
 ---
 
-**⭐ Star this repo if you found it helpful!**
+*Built as a senior capstone project at NYU Abu Dhabi, 2025.*
