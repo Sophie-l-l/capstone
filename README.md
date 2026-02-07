@@ -500,10 +500,23 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 👥 Authors
+## 👥 Authors & Contributions
 
-**Sophie Lin** and **Yanlin Wu**  
-Computer Science Capstone Project 2025  
+**Sophie Lin** — Architecture, full-stack development, deployment
+- Designed and built the **Next.js frontend** (all pages, components, routing, state management)
+- Built the **Express backend** (REST API, Prisma ORM, JWT auth, all route handlers)
+- Implemented **Bayesian Knowledge Tracing** engine with adaptive skill updates
+- Built the **error classification pipeline** (60+ rule-based patterns, embedding deduplication)
+- Deployed to production (**Vercel** frontend, **Google Cloud Run** backend + AI service, **Cloud SQL**)
+- Created the **instructor analytics dashboard** (at-risk detection, error clustering, KC heatmaps)
+- Implemented **assignment system**, problem creation interface, and submission workflows
+- Wrote all project documentation and Architecture Decision Records
+
+**Yanlin Wu** — AI service contributions
+- Initial **Gemini LLM client** integration for error classification
+- Initial **student dashboard** prototype
+
+Computer Science Capstone Project 2025
 New York University Abu Dhabi
 
 ---
