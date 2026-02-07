@@ -512,7 +512,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Implemented **assignment system**, problem creation interface, and submission workflows
 - Wrote all project documentation and Architecture Decision Records
 
-**Yanlin Wu** — AI service contributions
+**Yanlin Wu** — Research and AI service contributions
+- Researched academic frameworks: **IEEE 1044-2009**, **Zehetmeier Cognitive Framework**, **Bloom's Taxonomy**, **Bayesian Knowledge Tracing**
 - Initial **Gemini LLM client** integration for error classification
 - Initial **student dashboard** prototype
 
