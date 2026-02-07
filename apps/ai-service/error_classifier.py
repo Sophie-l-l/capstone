@@ -403,7 +403,7 @@ def _sanitize_llm_result(d: Dict[str, Any]) -> Dict[str, Any]:
         "Apply", "Analyse", "Evaluate", "Create"
     }
     d = dict(d or {})
-    print(f'llm output is {d}')
+    logger.debug(f'LLM output: {d}')
     if d.get("surface_error") not in allowed_surface:
         
         d["surface_error"] = "Unknown"
@@ -518,23 +518,16 @@ def classify_error(request: ClassifyRequest) -> ClassifyResponse:
     except Exception:
         pass
     
-    print(f"📦 Creating ClassifyResponse:")
-    print(f"   surface_error: {result['surface_error']}")
-    print(f"   specific_error: {result['specific_error']}")
-    print(f"   cognitive_cause: {result['cognitive_cause']}")
-    print(f"   bloom_level: {result['bloom_level']}")
-    print(f"   confidence: {result['confidence']}")
-    print(f"   source: {source}")
-    logger.info(f"📦 Creating ClassifyResponse with: surface_error={result['surface_error']}, specific_error={result['specific_error']}, source={source}")
+    logger.info(f"Creating ClassifyResponse: surface_error={result['surface_error']}, specific_error={result['specific_error']}, source={source}")
     
     # OVERRIDE: If LLM returned "Unknown" but we have logic error indicators, fix it
     if result['surface_error'] == "Unknown" and (
-        request.expected_output is not None or 
+        request.expected_output is not None or
         request.actual_output is not None or
         "incorrect" in result.get('specific_error', '').lower() or
         "wrong" in result.get('specific_error', '').lower()
     ):
-        print(f"⚠️ Overriding Unknown -> Functional/Logic (logic error indicators detected)")
+        logger.info("Overriding Unknown -> Functional/Logic (logic error indicators detected)")
         result['surface_error'] = "Functional/Logic"
     
     return ClassifyResponse(

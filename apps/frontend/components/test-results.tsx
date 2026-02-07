@@ -72,7 +72,7 @@ export function TestResults({ submission }: TestResultsProps) {
                 className={`h-2 rounded-full transition-all ${
                   submission.status === "accepted" ? "bg-green-600" : "bg-red-600"
                 }`}
-                style={{ width: `${(submission.testCasesPassed / submission.totalTestCases) * 100}%` }}
+                style={{ width: `${submission.totalTestCases > 0 ? (submission.testCasesPassed / submission.totalTestCases) * 100 : 0}%` }}
               />
             </div>
           </div>
@@ -140,20 +140,26 @@ export function TestResults({ submission }: TestResultsProps) {
             </div>
             
             <div className="space-y-2 text-sm">
+              {submission.error.surfaceError && submission.error.surfaceError !== "Unknown" && (
               <div className="flex items-start gap-2">
                 <span className="font-medium text-blue-700 dark:text-blue-300 min-w-[120px]">Error Type:</span>
                 <span className="text-blue-600 dark:text-blue-400">{submission.error.surfaceError}</span>
               </div>
-              
+              )}
+
+              {submission.error.cognitiveCause && submission.error.cognitiveCause !== "KNOWLEDGE_GAP" && (
               <div className="flex items-start gap-2">
                 <span className="font-medium text-blue-700 dark:text-blue-300 min-w-[120px]">Likely Cause:</span>
-                <span className="text-blue-600 dark:text-blue-400">{submission.error.cognitiveCause}</span>
+                <span className="text-blue-600 dark:text-blue-400">{submission.error.cognitiveCause.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}</span>
               </div>
-              
+              )}
+
+              {submission.error.bloomLevel && (
               <div className="flex items-start gap-2">
                 <span className="font-medium text-blue-700 dark:text-blue-300 min-w-[120px]">Skill Level:</span>
                 <span className="text-blue-600 dark:text-blue-400">{submission.error.bloomLevel}</span>
               </div>
+              )}
               
               {submission.error.suggestion && (
                 <div className="mt-3 pt-3 border-t border-blue-500/20">

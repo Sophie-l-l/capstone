@@ -142,7 +142,7 @@ def classify_with_gemini(error_text: str, language: str, code: str = "") -> Opti
 
     try:
         genai.configure(api_key=google_key)
-        model_name = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash-exp")
+        model_name = os.getenv("GOOGLE_MODEL", "gemini-2.5-flash")
         
         # Enhanced prompt with academic framework + HALLUCINATION PREVENTION
         system_prompt = """You are an expert error classification assistant for CS education.
@@ -447,7 +447,7 @@ def classify_logic_error_with_gemini(
 
     try:
         genai.configure(api_key=google_key)
-        model_name = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash-exp")
+        model_name = os.getenv("GOOGLE_MODEL", "gemini-2.5-flash")
         
         system_prompt = """You are an expert algorithm analysis assistant for CS education.
 
@@ -628,14 +628,7 @@ RESPOND WITH ONLY THE JSON OBJECT. Example:
         
         result = json.loads(text)
         
-        # DEBUG: Log what LLM returned before validation
-        print(f"🤖 LLM RAW RESPONSE for logic error:")
-        print(f"   surface_error: {result.get('surface_error')}")
-        print(f"   specific_error: {result.get('specific_error')}")
-        print(f"   cognitive_cause: {result.get('cognitive_cause')}")
-        print(f"   bloom_level: {result.get('bloom_level')}")
-        print(f"   confidence: {result.get('confidence')}")
-        logger.info(f"🤖 LLM returned for logic error: surface_error={result.get('surface_error')}, specific_error={result.get('specific_error')}")
+        logger.info(f"LLM returned for logic error: surface_error={result.get('surface_error')}, specific_error={result.get('specific_error')}")
         
         # ✨ NEW: Always set to Functional/Logic for logic errors
         result["surface_error"] = SurfaceErrorCategory.FUNCTIONAL_LOGIC.value
@@ -663,11 +656,7 @@ RESPOND WITH ONLY THE JSON OBJECT. Example:
         # IMPROVED: Confidence calibration for logic errors
         result = _calibrate_confidence(result, f"Logic: {expected} vs {actual}", code)
         
-        print(f"✅ FINAL logic error classification:")
-        print(f"   surface_error: {result['surface_error']}")
-        print(f"   specific_error: {result.get('specific_error')}")
-        print(f"   confidence: {result['confidence']}")
-        logger.info(f"✅ Final logic error classification: surface_error={result['surface_error']}, specific_error={result.get('specific_error')}")
+        logger.info(f"Final logic error classification: surface_error={result['surface_error']}, specific_error={result.get('specific_error')}, confidence={result['confidence']}")
         
         return result
 
@@ -690,26 +679,6 @@ RESPOND WITH ONLY THE JSON OBJECT. Example:
             "compiler_excerpt": f"Expected: {expected[:50]}, Got: {actual[:50]}",
             "cognitive_cause": CognitiveCause.WRONG_CHOICE.value,
             "bloom_level": BloomLevel.APPLY.value,
-            "reasoning": "Logic error detected but classification encountered exception.",
-            "confidence": 0.60
-        }
-        return {
-            "surface_error": "Functional/Logic",
-            "specific_error": "Incorrect output",
-            "compiler_excerpt": f"Expected: {expected[:50]}, Got: {actual[:50]}",
-            "cognitive_cause": "WRONG_CHOICE",
-            "bloom_level": "Apply",
-            "reasoning": "Logic error detected but JSON parsing failed during classification.",
-            "confidence": 0.60
-        }
-    except Exception as e:
-        logger.exception(f"Logic error classification failed: {e}")
-        return {
-            "surface_error": "Functional/Logic",
-            "specific_error": "Incorrect output",
-            "compiler_excerpt": f"Expected: {expected[:50]}, Got: {actual[:50]}",
-            "cognitive_cause": "WRONG_CHOICE",
-            "bloom_level": "Apply",
             "reasoning": "Logic error detected but classification encountered exception.",
             "confidence": 0.60
         }

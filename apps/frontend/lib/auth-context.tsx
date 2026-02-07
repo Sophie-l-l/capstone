@@ -31,35 +31,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = localStorage.getItem('educode_token')
       const storedUser = localStorage.getItem('educode_user')
-      
+
       if (token && storedUser) {
         apiClient.setToken(token)
-        // First restore from localStorage for immediate display
-        const parsedUser = JSON.parse(storedUser)
-        setUser(parsedUser)
-        
-        // Then verify with backend in background (don't block UI)
-        apiClient.getCurrentUser()
-          .then((userData) => {
-            setUser(userData.user)
-            localStorage.setItem('educode_user', JSON.stringify(userData.user))
-          })
-          .catch((verifyErr) => {
-            // If verification fails with 401, token is invalid - clear everything
-            if (verifyErr.message?.includes('401') || verifyErr.message?.includes('Unauthorized')) {
-              console.warn('Token invalid, clearing auth')
+
+        // Verify token with backend before showing authenticated state
+        try {
+          const userData = await apiClient.getCurrentUser()
+          setUser(userData.user)
+          localStorage.setItem('educode_user', JSON.stringify(userData.user))
+        } catch (verifyErr: any) {
+          if (verifyErr.message?.includes('401') || verifyErr.message?.includes('Unauthorized')) {
+            // Token is invalid — clear everything
+            console.warn('Token invalid, clearing auth')
+            localStorage.removeItem('educode_token')
+            localStorage.removeItem('educode_user')
+            apiClient.setToken(null)
+            setUser(null)
+          } else {
+            // Network/server error — fall back to cached user so the app is still usable offline
+            console.warn('Could not verify user with backend, using cached data:', verifyErr)
+            try {
+              setUser(JSON.parse(storedUser))
+            } catch {
               setUser(null)
-              localStorage.removeItem('educode_token')
-              localStorage.removeItem('educode_user')
-              apiClient.setToken(null)
-            } else {
-              // Other errors (network, 500, etc) - keep using cached user
-              console.warn('Could not verify user with backend, using cached data:', verifyErr)
             }
-          })
+          }
+        }
       }
     } catch (err) {
-      // Token parsing failed, clear it
+      // localStorage parsing failed, clear it
       console.error('Auth check error:', err)
       localStorage.removeItem('educode_token')
       localStorage.removeItem('educode_user')

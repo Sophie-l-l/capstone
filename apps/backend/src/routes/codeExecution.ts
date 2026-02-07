@@ -159,6 +159,8 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
   let maxMemory = 0;
   let status = "accepted";
   let lastResult: any = null;
+  // Track the first failing test case to avoid re-running later
+  let firstFailingTestCase: { input: string; output: string; actualOutput: string } | null = null;
 
     for (const testCase of problem.testCases) {
       try {
@@ -174,6 +176,13 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
         if (passed) {
           passedCount++;
         } else {
+          if (!firstFailingTestCase) {
+            firstFailingTestCase = {
+              input: testCase.input,
+              output: testCase.output,
+              actualOutput: (result.stdout || "").toString()
+            };
+          }
           status = "wrong_answer";
         }
 
@@ -214,36 +223,15 @@ router.post("/:id/submit", authenticateToken, async (req: Request, res: Response
           stderr: lastResult.stderr,
           code // include the submitted code so the AI can analyze it together with the error
         });
-      } else if (status === "wrong_answer") {
-        // Re-run to identify the first failing test case to provide precise logic error context
-        const langId = languageIds[language] as number;
-        let failingInput = "";
-        let expectedOutput = "";
-        let actualOutput = "";
-        try {
-          for (const tc of problem.testCases as any[]) {
-            const r = await runCode(code, langId, tc.input);
-            const passed = r.stdout?.trim() === tc.output.trim();
-            if (!passed) {
-              failingInput = tc.input;
-              expectedOutput = tc.output;
-              actualOutput = (r.stdout || "").toString();
-              break;
-            }
-          }
-        } catch (e) {
-          // best effort; fall back to lastResult
-          failingInput = "";
-          expectedOutput = "";
-          actualOutput = lastResult?.stdout || "";
-        }
+      } else if (status === "wrong_answer" && firstFailingTestCase) {
+        // Use the first failing test case tracked during the initial run
         await recordLogicError({
           submissionId: submission.id,
           language,
           code,
-          failingInput,
-          expectedOutput,
-          actualOutput,
+          failingInput: firstFailingTestCase.input,
+          expectedOutput: firstFailingTestCase.output,
+          actualOutput: firstFailingTestCase.actualOutput,
           problemDescription: problem.description
         });
       }

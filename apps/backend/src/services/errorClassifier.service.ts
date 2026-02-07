@@ -85,18 +85,18 @@ export async function classifyWithAI(
     return response.data;
   } catch (error: any) {
     console.error("AI classification failed:", error.message);
-    // Fallback to generic classification
+    // Fallback when AI service is unreachable
     return {
       surface_error: "Unknown",
       specific_error: "Unknown error",
       compiler_excerpt: text.substring(0, 100),
       cognitive_cause: "KNOWLEDGE_GAP",
       bloom_level: "Remember",
-      reasoning: "Classification service unavailable",
-      confidence: 0.3,
+      reasoning: "Classification service unavailable. The error could not be analyzed automatically.",
+      confidence: 0.1,
       embedding: null,
       normalized_text: normalizeError(text),
-      source: "rule-based"
+      source: "fallback"
     };
   }
 }

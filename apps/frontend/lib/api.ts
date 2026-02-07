@@ -155,9 +155,11 @@ class ApiClient {
   // Code execution endpoints
   async runCode(problemId: string, code: string, language: string) {
     if (shouldUseMock('problems')) {
-      // Mock successful code run
+      // Mock successful code run — shape must match real API response
       return Promise.resolve({
-        status: 'success',
+        status: 'Accepted',
+        testCasesPassed: 1,
+        totalTestCases: 1,
         results: [
           {
             testCaseId: '1',
@@ -169,8 +171,9 @@ class ApiClient {
             memory: 1024
           }
         ],
-        totalRuntime: 0.05,
-        totalMemory: 1024
+        compileOutput: null,
+        stderr: null,
+        message: 'All test cases passed!'
       })
     }
     return this.request(`/api/problems/${problemId}/run`, {
