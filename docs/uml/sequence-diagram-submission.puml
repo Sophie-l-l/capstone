@@ -1,0 +1,137 @@
+@startuml
+autonumber
+title System Sequence Diagram - Student Submits Code Solution
+
+actor Student
+participant "Frontend\n(Next.js)" as FE
+participant "Backend\n(Express)" as BE
+participant "Judge0\nAPI" as J0
+participant "AI Service\n(FastAPI)" as AI
+database "PostgreSQL" as DB
+
+== Authentication ==
+Student -> FE: Navigate to problem page
+FE -> BE: GET /api/problems/:id
+BE -> DB: SELECT * FROM problems WHERE id=?
+DB --> BE: Problem details + test cases
+BE --> FE: Problem data (JSON)
+FE --> Student: Display problem + code editor
+
+== Code Submission ==
+Student -> FE: Write code + click "Submit"
+FE -> FE: Validate code not empty
+FE -> BE: POST /api/code-execution\n{problemId, code, language}
+note right
+  Authorization: Bearer <JWT>
+  Body: {
+    problemId: "abc-123",
+    code: "def solve(arr)...",
+    language: "python"
+  }
+end note
+
+BE -> BE: authenticateToken middleware\nExtract userId from JWT
+
+== Code Execution via Judge0 ==
+loop For each test case
+    BE -> J0: POST /submissions\n{source_code, stdin, expected_output}
+    note right
+      {
+        source_code: base64(code),
+        language_id: 71 (Python),
+        stdin: base64(testInput),
+        cpu_time_limit: 5,
+        memory_limit: 256000
+      }
+    end note
+    
+    J0 --> BE: {token: "xyz-789", status: {id: 1}}
+    
+    BE -> J0: GET /submissions/xyz-789
+    J0 --> BE: {status: {id: 1, description: "Processing"}}
+    
+    loop While status = "Processing" (max 10 attempts)
+        BE -> BE: Wait 500ms
+        BE -> J0: GET /submissions/xyz-789
+        J0 --> BE: {status: {id: 3}, stdout, time, memory}
+    end
+    
+    BE -> BE: Compare stdout with expected output\nDetermine testPassed (boolean)
+end
+
+BE -> BE: Calculate overall status\n(accepted if all tests pass)
+
+== Store Submission ==
+BE -> DB: INSERT INTO submissions\n{userId, problemId, code, status, ...}
+DB --> BE: Submission created (id)
+
+alt Status != "accepted"
+    == Error Classification ==
+    BE -> AI: POST /classify\n{code, error, language}
+    note right
+      {
+        code: "def solve(arr)...",
+        compiler_error: "SyntaxError: ...",
+        runtime_error: "IndexError: ...",
+        language: "python"
+      }
+    end note
+    
+    AI -> AI: Parse error output\nExtract error type & line
+    AI -> AI: Query LLM with prompt:\n"Classify this error in 3 dimensions..."
+    
+    AI --> BE: {surfaceError: "Runtime",\ncognitiveCause: "Carelessness",\nbloomLevel: "Apply",\nsuggestion: "..."}
+    
+    BE -> DB: INSERT INTO submission_errors\n{submissionId, ...}
+    BE -> DB: INSERT INTO error_signatures\n{language, surfaceError, ...}
+    DB --> BE: Error stored
+end
+
+== Update BKT States ==
+BE -> DB: SELECT knowledgeComponents FROM problems\nWHERE id = ?
+DB --> BE: ["arrays", "two_pointers"]
+
+loop For each knowledge component
+    BE -> BE: bkt.service.updateBKTLocal(userId, kcName, correct)
+    BE -> DB: SELECT * FROM knowledge_component\nWHERE name = ?
+    DB --> BE: {id: "kc-123", name: "arrays"}
+    
+    BE -> DB: SELECT * FROM bkt_state\nWHERE userId = ? AND kcId = ?
+    alt BKT state exists
+        DB --> BE: {pKnown: 0.35, attempts: 5, corrects: 3}
+        BE -> BE: Calculate posterior using Bayes:\npKnown_new = f(pKnown, correct, S, G, T)
+    else BKT state doesn't exist
+        DB --> BE: null
+        BE -> DB: INSERT INTO bkt_state\n{userId, kcId, pKnown: 0.2}
+        DB --> BE: BKT state created
+    end
+    
+    BE -> DB: UPDATE bkt_state\nSET pKnown = ?, attempts++, corrects++
+    DB --> BE: Updated
+end
+
+== Update Problem Statistics ==
+BE -> DB: UPDATE problems\nSET totalSubmissions++,\nacceptanceRate = ...
+DB --> BE: Updated
+
+== Return Results ==
+BE --> FE: {status: "accepted",\ntestCasesPassed: 5,\ntotalTestCases: 5,\nruntime: 0.023,\nmemory: 4096}
+
+FE -> FE: Update UI with results\nShow success/error message
+
+FE --> Student: Display submission results\n+ test case details + metrics
+
+alt Error occurred
+    Student -> FE: Click "View Error Explanation"
+    FE --> Student: Show AI-generated suggestion
+end
+
+== View Updated Mastery ==
+Student -> FE: Navigate to dashboard
+FE -> BE: GET /api/dashboard/student/:id
+BE -> DB: SELECT * FROM bkt_state\nWHERE userId = ?
+DB --> BE: [{kc: "arrays", pKnown: 0.42}, ...]
+BE --> FE: {kcMastery: [...], submissions: [...]}
+FE --> Student: Display updated mastery chart\n(arrays: 42% → 52%)
+
+@enduml

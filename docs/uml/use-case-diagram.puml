@@ -1,0 +1,131 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+title Use Case Diagram - EduCode Adaptive Learning Platform
+
+actor Student as S
+actor Instructor as I
+actor System as Sys
+
+rectangle "Authentication & Profile" {
+    usecase (Register Account) as UC1
+    usecase (Login) as UC2
+    usecase (Update Profile) as UC3
+    usecase (View Dashboard) as UC4
+}
+
+rectangle "Problem Solving (Student)" {
+    usecase (Browse Problems) as UC5
+    usecase (Filter by Difficulty/Topic) as UC6
+    usecase (View Problem Description) as UC7
+    usecase (Submit Solution) as UC8
+    usecase (View Submission Results) as UC9
+    usecase (View Test Cases) as UC10
+    usecase (See Error Explanation) as UC11
+}
+
+rectangle "Progress Tracking (Student)" {
+    usecase (View Knowledge Mastery) as UC12
+    usecase (View Submission History) as UC13
+    usecase (Get Recommended Problems) as UC14
+    usecase (Track Assignment Progress) as UC15
+}
+
+rectangle "Problem Management (Instructor)" {
+    usecase (Create Problem) as UC16
+    usecase (Edit Problem) as UC17
+    usecase (Add Test Cases) as UC18
+    usecase (Define Knowledge Components) as UC19
+    usecase (Set Difficulty Level) as UC20
+}
+
+rectangle "Class Management (Instructor)" {
+    usecase (Create Class) as UC21
+    usecase (Enroll Students) as UC22
+    usecase (Create Problem Set) as UC23
+    usecase (Assign Problems to Class) as UC24
+    usecase (Set Due Dates) as UC25
+}
+
+rectangle "Analytics & Monitoring (Instructor)" {
+    usecase (View Class Performance) as UC26
+    usecase (Identify At-Risk Students) as UC27
+    usecase (Analyze Error Patterns) as UC28
+    usecase (View Student Progress) as UC29
+    usecase (Export Class Metrics) as UC30
+}
+
+rectangle "Automated System Processes" {
+    usecase (Execute Code Submission) as UC31
+    usecase (Grade Submission) as UC32
+    usecase (Classify Error) as UC33
+    usecase (Update BKT State) as UC34
+    usecase (Generate Recommendations) as UC35
+    usecase (Sync Knowledge Components) as UC36
+}
+
+' Student relationships
+S --> UC1
+S --> UC2
+S --> UC3
+S --> UC4
+S --> UC5
+S --> UC6
+S --> UC7
+S --> UC8
+S --> UC9
+S --> UC10
+S --> UC11
+S --> UC12
+S --> UC13
+S --> UC14
+S --> UC15
+
+' Instructor relationships
+I --> UC2
+I --> UC3
+I --> UC4
+I --> UC16
+I --> UC17
+I --> UC18
+I --> UC19
+I --> UC20
+I --> UC21
+I --> UC22
+I --> UC23
+I --> UC24
+I --> UC25
+I --> UC26
+I --> UC27
+I --> UC28
+I --> UC29
+I --> UC30
+
+' System relationships
+Sys --> UC31
+Sys --> UC32
+Sys --> UC33
+Sys --> UC34
+Sys --> UC35
+Sys --> UC36
+
+' Include/Extend relationships
+UC8 ..> UC31 : <<trigger>>
+UC31 ..> UC32 : <<include>>
+UC32 ..> UC33 : <<include>>
+UC32 ..> UC34 : <<include>>
+UC34 ..> UC35 : <<trigger>>
+
+UC16 ..> UC18 : <<include>>
+UC16 ..> UC19 : <<include>>
+UC16 ..> UC36 : <<trigger>>
+
+UC5 ..> UC6 : <<extend>>
+UC7 ..> UC10 : <<include>>
+UC9 ..> UC11 : <<extend>>
+
+UC26 ..> UC27 : <<include>>
+UC26 ..> UC28 : <<include>>
+
+@enduml

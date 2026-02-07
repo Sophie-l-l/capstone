@@ -1,0 +1,123 @@
+@startuml
+!theme plain
+
+title Package Diagram - EduCode Adaptive Learning Platform
+
+package "Frontend (Vercel)" <<Node>> {
+    package "app" {
+        package "dashboard" {
+            [student/page.tsx]
+            [instructor/page.tsx]
+        }
+        package "problems" {
+            [page.tsx]
+            [id-page.tsx]
+        }
+        package "create-problem" {
+            [page.tsx]
+        }
+        package "metrics" {
+            [student/page.tsx]
+            [submission/page.tsx]
+        }
+    }
+    
+    package "components" {
+        [code-editor.tsx]
+        [problems-table.tsx]
+        [skill-mastery-chart.tsx]
+        [at-risk-students.tsx]
+        [dashboard-nav.tsx]
+    }
+    
+    package "lib" {
+        [api.ts]
+        [utils.ts]
+    }
+}
+
+package "Backend (Cloud Run)" <<Node>> {
+    package "routes" {
+        [auth.ts]
+        [problems.ts]
+        [codeExecution.ts]
+        [submissions.ts]
+        [classes.ts]
+        [problemSets.ts]
+        [studentDashboard.ts]
+        [instructorDashboard.ts]
+    }
+    
+    package "services" {
+        [bkt.service.ts]
+        [judge0.service.ts]
+        [ai.service.ts]
+    }
+    
+    package "middleware" {
+        [authenticateToken.ts]
+        [errorHandler.ts]
+    }
+    
+    package "prisma" {
+        [schema.prisma]
+        [migrations/]
+    }
+    
+    package "scripts" {
+        [sync-knowledge-components.ts]
+        [seed-sample-data.ts]
+    }
+}
+
+package "AI Service (Cloud Run)" <<Node>> {
+    package "ai-service" {
+        [main.py]
+        [llm_client.py]
+        [error_classifier.py]
+        [error_types.py]
+    }
+}
+
+package "Shared Types" <<Node>> {
+    package "packages/shared-types" {
+        [index.ts]
+    }
+}
+
+package "External Services" <<Cloud>> {
+    [Judge0 API]
+    [OpenAI API]
+}
+
+database "Cloud SQL" {
+    [PostgreSQL]
+}
+
+' Frontend dependencies
+[app] ..> [components] : uses
+[app] ..> [lib] : uses
+[lib] --> [routes] : HTTP/REST
+
+' Backend dependencies
+[routes] ..> [services] : uses
+[routes] ..> [middleware] : uses
+[routes] ..> [prisma] : uses
+[services] --> [External Services] : API calls
+[prisma] --> [PostgreSQL] : Prisma ORM
+
+' AI Service dependencies
+[ai-service] ..> [error_types.py] : uses
+[llm_client.py] --> [OpenAI API] : API calls
+[ai-service] --> [PostgreSQL] : Read problems
+
+' Shared types
+[Frontend (Vercel)] ..> [Shared Types] : imports
+[Backend (Cloud Run)] ..> [Shared Types] : imports
+[AI Service (Cloud Run)] ..> [error_types.py] : Python version
+
+' Service communication
+[services] --> [ai-service] : HTTP/REST
+[routes] --> [ai-service] : Classify errors
+
+@enduml

@@ -1,0 +1,66 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Deployment Diagram - EduCode Adaptive Learning Platform
+
+Person(student, "Student", "Uses platform to solve coding problems")
+Person(instructor, "Instructor", "Creates problems and monitors progress")
+
+Deployment_Node(vercel, "Vercel Edge Network", "Global CDN") {
+    Container(frontend, "Frontend Application", "Next.js 14, React, TypeScript", "Student & instructor user interfaces")
+}
+
+Deployment_Node(gcp, "Google Cloud Platform - us-central1", "Cloud Infrastructure") {
+    
+    Deployment_Node(cloudrun_backend, "Cloud Run", "Serverless Container Platform") {
+        Container(backend, "Backend Service", "Node.js, Express, TypeScript", "REST API, authentication, business logic")
+    }
+    
+    Deployment_Node(cloudrun_ai, "Cloud Run", "Serverless Container Platform") {
+        Container(ai_service, "AI Service", "Python, FastAPI", "Error classification using LLM")
+    }
+    
+    Deployment_Node(cloudsql, "Cloud SQL", "Managed Database") {
+        ContainerDb(database, "PostgreSQL", "PostgreSQL 14", "Stores users, problems, submissions, BKT states")
+    }
+    
+    Deployment_Node(secrets, "Secret Manager", "Secret Storage") {
+        Container(secret_mgr, "Secrets", "Secret Manager", "DATABASE_URL, JWT_SECRET, API keys")
+    }
+    
+    Deployment_Node(build, "Cloud Build", "CI/CD Pipeline") {
+        Container(cicd, "Build Pipeline", "Cloud Build", "Automated Docker builds and deployments")
+    }
+}
+
+Deployment_Node(rapidapi, "RapidAPI", "External API Service") {
+    Container(judge0, "Judge0 CE", "Code Execution Engine", "Sandboxed code execution for 40+ languages")
+}
+
+Deployment_Node(openai, "OpenAI", "External AI Service") {
+    Container(gemini, "Gemini API", "GPT-4", "Large language model for error classification")
+}
+
+Deployment_Node(github, "GitHub", "Version Control") {
+    Container(repo, "Source Repository", "Git", "Source code and version control")
+}
+
+Rel(student, frontend, "Uses", "HTTPS")
+Rel(instructor, frontend, "Uses", "HTTPS")
+
+Rel(frontend, backend, "API calls", "HTTPS/JSON")
+Rel(backend, ai_service, "Classify error", "HTTP/JSON")
+Rel(backend, database, "Read/Write", "PostgreSQL Protocol / Private IP")
+Rel(backend, judge0, "Execute code", "HTTPS/REST")
+Rel(backend, secret_mgr, "Fetch secrets", "Secret Manager API")
+Rel(ai_service, database, "Read problems", "PostgreSQL Protocol / Private IP")
+Rel(ai_service, gemini, "LLM inference", "HTTPS/REST")
+
+Rel(repo, cicd, "Trigger on commit", "Webhook")
+Rel(cicd, cloudrun_backend, "Deploy", "Cloud Run API")
+Rel(cicd, cloudrun_ai, "Deploy", "Cloud Run API")
+
+SHOW_LEGEND()
+@enduml

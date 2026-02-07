@@ -36,12 +36,11 @@ let problemSetRoutes: any = require("./routes/problemSets");
 let submissionsRoutes: any = require("./routes/submissions");
 let errorsRoutes: any = null;
 let devRoutes: any = null;
-if (process.env.NODE_ENV !== 'production') {
-  try {
-    devRoutes = require("./routes/dev");
-  } catch (e) {
-    console.error('Dev routes not available:', e);
-  }
+// Load dev routes in all environments for admin operations
+try {
+  devRoutes = require("./routes/dev");
+} catch (e) {
+  console.error('Dev routes not available:', e);
 }
 
 // Normalize common export shapes: allow either `module.exports = router` or `module.exports = { router, ... }` or `export default`

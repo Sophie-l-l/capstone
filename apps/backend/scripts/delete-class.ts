@@ -4,13 +4,13 @@ const prisma = new PrismaClient();
 
 async function deleteClass() {
   try {
-    // Find class with name "(0)"
+    // Find class with name "test class"
     const classToDelete = await prisma.class.findFirst({
-      where: { name: "(0)" }
+      where: { name: "test class" }
     });
 
     if (!classToDelete) {
-      console.log("❌ Class '(0)' not found");
+      console.log("❌ Class 'test class' not found");
       return;
     }
 
@@ -32,7 +32,7 @@ async function deleteClass() {
     await prisma.class.delete({
       where: { id: classToDelete.id }
     });
-    console.log(`✅ Deleted class '(0)'`);
+    console.log(`✅ Deleted class 'test class'`);
 
   } catch (error) {
     console.error("❌ Error:", error);

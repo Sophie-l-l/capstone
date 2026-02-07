@@ -287,4 +287,55 @@ router.post("/flush-and-sync-kcs", async (req: any, res: any) => {
   }
 });
 
+// DELETE /api/dev/delete-class/:id
+// Delete a class by ID
+router.delete("/delete-class/:id", async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+
+    // Check if class exists
+    const classToDelete = await prisma.class.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { enrollments: true, problemSets: true }
+        }
+      }
+    });
+
+    if (!classToDelete) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+
+    // Delete enrollments first (foreign key constraint)
+    const deletedEnrollments = await prisma.classEnrollment.deleteMany({
+      where: { classId: id }
+    });
+
+    // Delete problem sets
+    const deletedProblemSets = await prisma.problemSet.deleteMany({
+      where: { classId: id }
+    });
+
+    // Delete the class
+    await prisma.class.delete({
+      where: { id }
+    });
+
+    return res.json({
+      message: `✅ Deleted class "${classToDelete.name}"`,
+      deleted: {
+        class: classToDelete.name,
+        enrollments: deletedEnrollments.count,
+        problemSets: deletedProblemSets.count
+      }
+    });
+  } catch (err: any) {
+    console.error("/api/dev/delete-class failed:", err);
+    return res.status(500).json({ message: err?.message || "Unexpected error" });
+  }
+});
+
+
+
 
