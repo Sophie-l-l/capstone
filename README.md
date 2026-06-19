@@ -6,7 +6,21 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Google Cloud](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)](https://cloud.google.com/)
 
-**EduCode** is an **AI-powered adaptive learning platform** for computer science education that uses **Bayesian Knowledge Tracing (BKT)** and **advanced error classification** to personalize the learning experience for students while providing actionable insights for instructors.
+**EduCode** is an **AI-powered adaptive learning platform for programming education** that combines **Bayesian Knowledge Tracing (BKT)**, **multi-layer error judging**, and **hybrid AI + rule-based feedback** to personalize the learning experience for each student. The platform analyzes code submissions not only at the surface level, but also across deeper **cognitive** and **technical** dimensions. It classifies errors, estimates mastery of knowledge components, and recommends next steps that help learners improve more effectively.
+
+At the heart of EduCode is a layered judging pipeline that evaluates student submissions from multiple perspectives:
+
+- **Technical layer** — checks syntax, runtime behavior, test case outcomes, and code execution results through Judge0 and backend validation.
+- **Cognitive layer** — interprets the learning reason behind an error, such as a knowledge gap, misconception, or ineffective strategy.
+- **Academic taxonomy layer** — maps issues to structured educational frameworks including IEEE 1044-2009, Zehetmeier’s cognitive framework, and Bloom’s Taxonomy.
+- **Adaptation layer** — updates learner mastery with BKT so recommendations stay aligned with the student’s evolving skill profile.
+
+To balance speed and intelligence, EduCode uses a **hybrid error-classification strategy**:
+
+- **Rule-based logic** handles common, well-defined errors quickly and consistently.
+- **Google Gemini API** is used for more ambiguous or complex cases where deeper reasoning is needed.
+
+This combination allows the platform to deliver feedback that is both **fast** and **pedagogically meaningful**.
 
 🌐 **Live Demo:** [https://educode-adaptive-platform.vercel.app](https://educode-adaptive-platform.vercel.app)
 
@@ -19,9 +33,9 @@
 - **Zehetmeier Cognitive Framework** (Cognitive Causes)
 - **Bloom's Taxonomy** (Learning Levels)
 - **Bayesian Knowledge Tracing** (Adaptive Learning)
-- **LLM-Powered Error Analysis** (Google Gemini 2.0)
+- **Hybrid Error Analysis** (Rule-based patterns + Google Gemini 2.0)
 
-**Result:** Students receive academically grounded, personalized feedback that targets their specific learning gaps.
+**Result:** Students receive academically grounded, personalized feedback that targets both the technical cause of an error and the deeper cognitive reason behind it.
 
 ---
 
@@ -37,10 +51,10 @@
 
 #### **Intelligent Error Classification**
 - **60+ rule-based patterns** for instant feedback on common errors
-- **LLM fallback** (Google Gemini 2.0) for complex logic errors
+- **Gemini API fallback** for complex logic errors and ambiguous submissions
 - **Academic Framework:**
-  - **Surface Error** (IEEE 1044): Lexical, Syntax, Semantic/Type, Semantic/Link, Interface, Algorithm/Logic
-  - **Cognitive Cause**: MENTAL_TYPO, KNOWLEDGE_GAP, MISCONCEPTION, INEFFECTIVE_STRATEGY
+  - **Technical Layer / Surface Error** (IEEE 1044): Lexical, Syntax, Semantic/Type, Semantic/Link, Interface, Algorithm/Logic
+  - **Cognitive Layer**: MENTAL_TYPO, KNOWLEDGE_GAP, MISCONCEPTION, INEFFECTIVE_STRATEGY
   - **Bloom's Level**: Remember, Understand, Apply, Analyze, Evaluate, Create
 - **Error Deduplication:** Seen errors use cached classification (768-dimensional embeddings)
 
@@ -109,7 +123,7 @@
 
 ### **System Architecture**
 
-```
+```text
 ┌─────────────────┐
 │   Frontend      │
 │   (Vercel)      │
@@ -155,8 +169,8 @@
 3. **Judge0 executes** code with test inputs
 4. **If error detected:**
    - Backend calls AI service `/errors/classify`
-   - AI service tries **rule-based patterns** first (fast, 90% accuracy)
-   - If no match, **LLM analyzes** error (Gemini 2.0)
+   - AI service tries **rule-based patterns** first for fast, deterministic feedback
+   - If no match, **Gemini API analyzes** the error for deeper reasoning
    - Returns: `{surface_error, cognitive_cause, bloom_level, reasoning, embedding}`
 5. **Backend stores** error signature + links to submission
 6. **BKT updates** skill probabilities based on outcome
@@ -426,8 +440,8 @@ bash scripts/validate_full_pipeline_v2.sh
 
 ### **Error Classification Performance**
 - **Rule-based accuracy:** 92% on common errors (NameError, SyntaxError, etc.)
-- **LLM accuracy:** 85% on complex logic errors
-- **Average classification time:** <500ms (rule-based), <2s (LLM)
+- **Gemini accuracy:** 85% on complex logic errors
+- **Average classification time:** <500ms (rule-based), <2s (Gemini)
 - **Error deduplication rate:** 78% (cached classifications reused)
 
 ### **BKT Adaptation**
@@ -476,7 +490,7 @@ Probabilistic model tracking skill mastery:
 - **pSlip:** Probability of error despite knowledge
 
 **Update formula:**
-```
+```text
 pKnown(t+1) = pKnown(t) + (1 - pKnown(t)) * pLearned    [if correct]
 pKnown(t+1) = pKnown(t) * (1 - pSlip) / (1 - pGuess)    [if incorrect]
 ```
